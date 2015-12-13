@@ -9,15 +9,6 @@ import (
     "../lib/tonnerre/golang-dns"
 )
 
-var (
-    Debug *log.Logger = log.New(os.Stderr, "Debug: ", log.Lshortfile)
-    Error *log.Logger = log.New(os.Stderr, "Error: ", log.Lshortfile)
-)
-
-const (
-    DEF_BUF_SIZE int = 1500
-)
-
 type Client struct {
     ClientVAddr     *net.IPAddr
     ServerVAddr     *net.IPAddr

@@ -1,4 +1,13 @@
+package main
 
+import (
+    "log"
+    "os"
+    "fmt"
+    "../lib/songgao/water"
+    //"../lib/songgao/water/waterutil"
+    "../lib/tonnerre/golang-dns"
+)
 
 type Conn struct {
 
@@ -8,7 +17,6 @@ type Conn struct {
     buffer  map[int][]byte
     TUN     *Tunnel
 }
-
 
 type Server struct {
 
@@ -23,7 +31,7 @@ type Server struct {
     TUN  *Tunnel
 }
 
-func NewServer(laddr string, tunname string) (*Server, error){
+func NewServer(laddr string, tunname string, vaddr string) (*Server, error){
 
     s := new(Server)
     s.LAddr, err := net.ResolveUDPAddr(laddr)
@@ -31,6 +39,12 @@ func NewServer(laddr string, tunname string) (*Server, error){
         return nil, err
     }
 
+    s.VAddr, err := net.ResolveIPAddr(vaddr)
+    if err != nil {
+        return nil, err
+    }
+
+    // TODO
     s.DNS, err = NewDNS(laddr, ldns, topdomain)
     if err != nil {
         return nil, err
@@ -40,6 +54,7 @@ func NewServer(laddr string, tunname string) (*Server, error){
     if err != nil {
         return nil, err
     }
+
 }
 
 func NewConn(vaddr *IPAddr, paddr *UDPAddr, tun *Tunnel) (*Conn){
