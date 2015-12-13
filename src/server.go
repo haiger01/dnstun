@@ -1,80 +1,162 @@
-package main
 
-import (
-    "fmt"
-    "log"
-    "os"
-    "net"
-    "io"
-    //"fmt"
-    //"../lib/songgao/water"
-    //"../lib/songgao/water/waterutil"
-    "../lib/tonnerre/golang-dns"
-)
 
-var (
-    Debug *log.Logger = log.New(os.Stderr, "Debug: ", log.Lshortfile)
-    Error *log.Logger = log.New(os.Stderr, "Error: ", log.Lshortfile)
-)
+type Conn struct {
 
-func udp(){
+    VAddr   *IPAddr
+    PAddr   *UDPAddr
 
-    addr, err := net.ResolveUDPAddr("udp","0.0.0.0:53")
+    buffer  map[int][]byte
+    TUN     *Tunnel
+}
+
+
+type Server struct {
+
+    LAddr   *UDPAddr
+    VAddr   *IPAddr
+
+    Routes  map[string]*Conn
+
+    DNS     *DNSUtils
+    //DNSConn *UDPConn
+
+    TUN  *Tunnel
+}
+
+func NewServer(laddr string, tunname string) (*Server, error){
+
+    s := new(Server)
+    s.LAddr, err := net.ResolveUDPAddr(laddr)
     if err != nil {
-        Error.Println(err)
-        return
+        return nil, err
     }
 
+    s.DNS, err = NewDNS(laddr, ldns, topdomain)
+    if err != nil {
+        return nil, err
+    }
 
-    b := make([]byte, 1500)
-    conn, _ := net.ListenUDP("udp4", addr)
-    for{
-        n, _ := conn.Read(b)
-
-        if n > 0{
-            msg := new(dns.Msg)
-            msg.Unpack(b[:n])
-
-            fmt.Printf("-------------------------------------\n")
-            fmt.Printf("udp: received %d, %s\n",n, msg.String())
-        }
+    s.TUN, err = NewTunnel(tunname)
+    if err != nil {
+        return nil, err
     }
 }
 
-func main(){
-    /*
-    server := new(dns.Server)
-    server.Net = "tcp"
-    server.ListenAndServe()
-    */
+func NewConn(vaddr *IPAddr, paddr *UDPAddr, tun *Tunnel) (*Conn){
+    c := new(Conn)
+    c.VAddr = vaddr
+    c.PAddr = UDPAddr
+    c.TUN = tun
+    c.buffer = make(map[int][]byte)
+    return c
+}
 
-    go udp()
 
-    listener, err := net.Listen( "tcp", ":53")
-    if err != nil {
-        Error.Println(err)
-        return
-    }
+func (c *Conn) Recv(t *TUNIPPacket){
+    c.TUN.Save(c.buffer, t)
+}
 
-    defer listener.Close()
+func (s *Server) AcquireVAddr() *IPAddr{
 
+}
+
+func (s *Server) DNSSend(p []byte) error{
+    _, err :=  DNSConn.Write(pkt)
+    return err
+}
+
+func (s *Server) DNSRecv(){
+
+    b := make([]byte, DEF_BUF_SIZE)
     for {
-        conn, err := listener.Accept()
-        if( err != nil){
+        n, rpaddr, err := s.DNS.conn.ReadFromUDP(b)
+        if err != nil{
             Error.Println(err)
         }
-        go func( conn net.Conn){
-            b := make([]byte,1500)
-            for{
-                n, e := conn.Read(b)
-                fmt.Println(string(b[:n]))
-                if e == io.EOF {
-                    conn.Close()
-                    return
-                }
+
+        /*
+        conn, ok := s.Routes[addr.String()]
+        if ok != true {
+            Error.Printf("IP Packet %d not found\n", t.Id)
+            continue
+        }*/
+
+        dnsPacket, err := s.DNS.Unmarshal(b[:n]) // TODO
+        if err != nil {
+            Error.Println(err)
+            continue
+        }
+
+        tunPacket, err := s.TUN.Unmarshal(dnsPacket.Name) // TODO
+        if err != nil {
+            Error.Println(err)
+            continue
+        }
+
+        switch tunPacket.GetCmd() {
+        case TUN_CMD_CONNECT:
+
+            rvaddr := s.AcquireVAddr()  //TODO
+            lvaddr := s.VAddr
+
+            // create new connection for the client
+            conn := NewConn(rvaddr, rpaddr, s.TUN)
+            s.Routes[rvaddr.String()] = conn
+
+            t := new(TUNResponsePacket)
+            t.Cmd = TUN_CMD_RESPONSE
+            t.LAddr = lvaddr    // server's virtual address
+            t.RAddr = rvaddr    // client's virtual address
+
+            dnsPacket, err := dnsutils.Inject(t) // TODO
+            s.DNS.Send(dnsPacket)
+
+            Debug.Printf("Connected with %s\n", addr.String())
+
+        case TUN_CMD_DATA:
+
+            conn, err := s.FindByPAddr(rpaddr)  //TODO
+            if err != nil{
+                Debug.Println(err)
+                continue
             }
-            conn.Close()
-        }(conn)
+
+            // cast packet to TUNIPPacket TODO: test if it works
+            t, ok := tunPacket.(*TUNIPPacket)
+            if ok != nil {
+                Error.Printf("Unexpected cast fail from TUNPacket to TUNIPPacket\n")
+                continue
+            }else{
+                conn.Recv(t)
+            }
+
+        case TUN_CMD_KILL:
+
+            conn, err := s.FindByPAddr(rpaddr)
+            if err != nil{
+                Debug.Println(err)
+                continue
+            }
+            delete(s.Routes_By_PAddr, conn.PAddr.String())
+            delete(s.Routes_By_VAddr, conn.VAddr.String())
+            Debug.Printf("Close Conn with %s\n", conn.VAddr.String())
+
+        default:
+            Error.Println("Invalid TUN Cmd")
+        }
     }
 }
 
+func (s *Server) TUNRecv(){
+    b = make([]byte, DEF_BUF_SIZE )
+    for s.Running == true {
+
+        n, err := s.TUN.Read(b)
+        if err != nil {
+            Error.Println(err)
+            continue
+        }
+
+        s.DNS.InjectAndSendIPPacket(b[:n])
+    }
+}
