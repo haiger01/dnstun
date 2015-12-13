@@ -14,70 +14,83 @@ type Conn struct {
     VAddr   *IPAddr
     PAddr   *UDPAddr
 
-    buffer  map[int][]byte
+    Buffer  map[int][]byte
     TUN     *Tunnel
+    DNS     *DNSUtls
 }
 
 type Server struct {
 
-    LAddr   *UDPAddr
+    /* Physical Address DNS Server Listening on */
+    //LAddr   *UDPAddr
+
+    /* Virtual Address in TUN Virtual Interface */
     VAddr   *IPAddr
 
-    Routes  map[string]*Conn
+    Routes_By_VAddr  map[string]*Conn
+    Routes_By_PAddr  map[string]*Conn
 
     DNS     *DNSUtils
-    //DNSConn *UDPConn
-
-    TUN  *Tunnel
+    TUN     *Tunnel
 }
 
-func NewServer(laddr string, tunname string, vaddr string) (*Server, error){
+func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error){
 
     s := new(Server)
-    s.LAddr, err := net.ResolveUDPAddr(laddr)
+    /*
+    s.LAddr, err := net.ResolveUDPAddr("udp", laddr)
+    if err != nil {
+        return nil, err
+    }*/
+
+    s.VAddr, err := net.ResolveIPAddr("ip", vaddr)
     if err != nil {
         return nil, err
     }
 
-    s.VAddr, err := net.ResolveIPAddr(vaddr)
+    s.DNS, err = NewDNSServer(laddr, topDomain)
     if err != nil {
         return nil, err
     }
 
-    // TODO
-    s.DNS, err = NewDNS(laddr, ldns, topdomain)
+    s.TUN, err = NewTunnel(tunName)
     if err != nil {
         return nil, err
     }
-
-    s.TUN, err = NewTunnel(tunname)
-    if err != nil {
-        return nil, err
-    }
-
+    return s, nil
 }
 
-func NewConn(vaddr *IPAddr, paddr *UDPAddr, tun *Tunnel) (*Conn){
+func (s *Server) NewConn(vaddr *IPAddr, paddr *UDPAddr) (*Conn){
     c := new(Conn)
     c.VAddr = vaddr
-    c.PAddr = UDPAddr
-    c.TUN = tun
-    c.buffer = make(map[int][]byte)
+    c.PAddr = paddr
+    c.TUN = s.TUN
+    c.DNS = s.DNS
+    c.Buffer = make(map[int][]byte)
     return c
 }
 
 
 func (c *Conn) Recv(t *TUNIPPacket){
-    c.TUN.Save(c.buffer, t)
+    c.TUN.Save(c.Buffer, t)
+}
+
+// TODO
+func (c *Conn) Send(p *IPPacket){
+
 }
 
 func (s *Server) AcquireVAddr() *IPAddr{
+    addr := new(IPAddr)
+    *addr = *s.NextIPAddr
 
+    // TODO
 }
 
-func (s *Server) DNSSend(p []byte) error{
-    _, err :=  DNSConn.Write(pkt)
-    return err
+func (s *Server) FindByPAddr(addr *UDPAddr) *Conn, error {
+
+    conn, ok := s.Routes_By_PAddr(addr.String())
+    return conn, ok
 }
 
 func (s *Server) DNSRecv(){
@@ -89,20 +102,12 @@ func (s *Server) DNSRecv(){
             Error.Println(err)
         }
 
-        /*
-        conn, ok := s.Routes[addr.String()]
-        if ok != true {
-            Error.Printf("IP Packet %d not found\n", t.Id)
-            continue
-        }*/
-
-        dnsPacket, err := s.DNS.Unmarshal(b[:n]) // TODO
+        dnsPacket, err := s.DNS.Unpack(b[:n]) // TODO
         if err != nil {
             Error.Println(err)
             continue
         }
-
-        tunPacket, err := s.TUN.Unmarshal(dnsPacket.Name) // TODO
+        tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
         if err != nil {
             Error.Println(err)
             continue
@@ -112,27 +117,36 @@ func (s *Server) DNSRecv(){
         case TUN_CMD_CONNECT:
 
             rvaddr := s.AcquireVAddr()  //TODO
-            lvaddr := s.VAddr
 
             // create new connection for the client
-            conn := NewConn(rvaddr, rpaddr, s.TUN)
-            s.Routes[rvaddr.String()] = conn
+            conn := s.NewConn(rvaddr, rpaddr)
+            s.Routes_By_VAddr[rvaddr.String()] = conn
+            s.Routes_By_PAddr[rpaddr.String()] = conn
 
             t := new(TUNResponsePacket)
             t.Cmd = TUN_CMD_RESPONSE
-            t.LAddr = lvaddr    // server's virtual address
-            t.RAddr = rvaddr    // client's virtual address
+            t.LAddr = s.VAddr    // server's virtual ip address
+            t.RAddr = rvaddr     // client's virtual ip address
 
-            dnsPacket, err := dnsutils.Inject(t) // TODO
-            s.DNS.Send(dnsPacket)
+            dnsPacket, _, err := s.DNS.Inject(t) // TODO
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
+
+            err = s.DNS.SendTo(dnsPacket, conn.VAddr)
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
 
             Debug.Printf("Connected with %s\n", addr.String())
 
         case TUN_CMD_DATA:
 
-            conn, err := s.FindByPAddr(rpaddr)  //TODO
-            if err != nil{
-                Debug.Println(err)
+            conn, ok := s.Routes_By_PAddr(rpaddr.String())
+            if !ok {
+                Debug.Println("Cannot find Connection for %s\n", rpaddr.String())
                 continue
             }
 
@@ -147,11 +161,12 @@ func (s *Server) DNSRecv(){
 
         case TUN_CMD_KILL:
 
-            conn, err := s.FindByPAddr(rpaddr)
-            if err != nil{
-                Debug.Println(err)
+            conn, ok := s.Routes_By_PAddr(rpaddr.String())
+            if !ok {
+                Debug.Println("Cannot find Conn for %s\n", rpaddr.String())
                 continue
             }
+
             delete(s.Routes_By_PAddr, conn.PAddr.String())
             delete(s.Routes_By_VAddr, conn.VAddr.String())
             Debug.Printf("Close Conn with %s\n", conn.VAddr.String())
@@ -163,6 +178,7 @@ func (s *Server) DNSRecv(){
 }
 
 func (s *Server) TUNRecv(){
+
     b = make([]byte, DEF_BUF_SIZE )
     for s.Running == true {
 
@@ -172,6 +188,32 @@ func (s *Server) TUNRecv(){
             continue
         }
 
-        s.DNS.InjectAndSendIPPacket(b[:n])
+        ipPacket, err := ip.Pack(b) // TODO
+        if err != nil {
+            Error.Println(err)
+            continue
+        }
+
+        // TODO
+        rvaddr := ipPacket.DstAddr
+
+        conn, ok := s.Routes_By_VAddr[rvaddr.String()]
+        if !ok {
+            Debug.Printf("Connection to vip %s not found\n", rvaddr.String())
+            continue
+        }
+
+        err := conn.Send(ipPacket)
+        if err != nil {
+            Error.Println(err)
+            continue
+        }
+
+        // TODO:
+        /*
+        err := s.DNS.InjectAndSendIPPacket(b[:n])
+        if err != nil {
+            Error.Println(err)
+        }*/
     }
 }

@@ -1,46 +1,39 @@
 
-type TUNCmd byte
 const (
-    TUN_CMD_CONNECT  TUNCmd = 'c'
-    TUN_CMD_RESPONSE TUNCmd = 'r'
-    TUN_CMD_DATA     TUNCmd = 'd'
-    TUN_CMD_KILL     TUNCmd = 'k'
+    TUN_CMD_CONNECT  byte = 'c'
+    TUN_CMD_RESPONSE byte = 'r'
+    TUN_CMD_DATA     byte = 'd'
+    TUN_CMD_KILL     byte = 'k'
 )
 
 type TUNPacket interface {
-    Cmd() TUNCmd
+    GetCmd() byte
 }
 
-/*
-type TUNPacket struct {
-    Cmd     TUNCmd
-    Payload []byte
-}*/
-
 type TUNCmdPacket struct {
-    Cmd TUNCmd
+    Cmd byte
 }
 
 type TUNResponsePacket struct {
-    Cmd     TUNCmd
-    LAddr   Addr
-    RAddr   Addr
+    Cmd     byte
+    LAddr   *IPAddr
+    RAddr   *IPAddr
 }
 
 type TUNIPPacket struct {
-    Cmd     TUNCmd
+    Cmd     byte
     Id      int
     Offset  int
     More    int
     Payload []byte
 }
-func (t *TUNCmdPacket) Cmd() TUNCmd{
+func (t *TUNCmdPacket) GetCmd() byte{
     return t.Cmd
 }
-func (t *TUNResponsePacket) Cmd() TUNCmd{
+func (t *TUNResponsePacket) GetCmd() byte{
     return TUN_CMD_RESPONSE
 }
-func (t *TUNIPPacket) Cmd() TUNCmd{
+func (t *TUNIPPacket) GetCmd() byte{
     return TUN_CMD_DATA
 }
 
@@ -98,5 +91,3 @@ func (t *Tunnel) Read(p []byte) (int, err){
     n, err := t.conn.Read(p)
     return n, err
 }
-
-

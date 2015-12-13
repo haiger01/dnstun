@@ -13,12 +13,6 @@ type Client struct {
     ClientVAddr     *net.IPAddr
     ServerVAddr     *net.IPAddr
 
-    //Laddr           string  // local address
-    //LocalServer     string  // local dns server
-    //TopDomain       string
-
-    //DNSConn         *net.UDPConn
-
     DNS             *DNSUtils
     TUN             *Tunnel
 
@@ -27,49 +21,108 @@ type Client struct {
     Running         bool
 }
 
-func NewClient(topdomain string, ldns string, laddr string,
-                tunname string) (*Client, error) {
+func NewClient(topDomain, ldns, laddr, tunName string) (*Client, error) {
 
     c := new(Client)
-    //c.TopDomain = topdomain
-    //c.LocalServer = ldns
-
     c.Running = false
 
+    /* Will be filled after connected with server */
     c.ClientVAddr = nil
     c.ServerVAddr = nil
 
     // TODO
-    c.DNS, err = NewDNS(laddr, ldns, topdomain)
+    c.DNS, err = NewDNSClient(laddr, ldns, topDomain)
     if err != nil {
         return nil, err
     }
-    c.TUN, err = NewTunnel(tunnel)
+    c.TUN, err = NewTunnel(tunName)
     if err != nil {
         return nil, err
     }
 
     c.Buffer = make(map[int][]byte)
+    return c, nil
 }
 
 func (c *Client) Connect() error {
 
-    // send connect request
-    tunCmd = new(TUNPacket)
-    tunCmd.Cmd = TUN_CMD_CREATE
+    // Create a TUN Packet
+    tunPacket = new(TUNCmdPacket)
+    tunPacket.Cmd = TUN_CMD_CREATE
 
+    // Inject the TUN Packet to a DNS Packet
     // TODO
     dnsPacket, err := c.DNS.Inject(tunCmd)
-    c.DNS.Send(dnsPacket)
 
+    // Listening on the port, wating for incoming DNS Packet
     go c.DNSRecv()
+
+    // Send DNS Packet to Local DNS Server
+    c.DNS.Send(dnsPacket)
 }
 
-/*
-func (c *Client) DNSSend(pkt []byte) error{
-    _, err :=  DNSConn.Write(pkt)
-    return err
-}*/
+func (c *Client) DNSRecv(){
+
+    b := make([]byte, DEF_BUF_SIZE)
+    for {
+        // rpaddr : the public UDP Addr of remote DNS Server
+        n, rpaddr, err := c.DNSConn.ReadFrom(b)
+        if err != nil{
+            Error.Println(err)
+        }
+
+        dnsPacket, err := s.DNS.Unpack(b[:n]) // TODO
+        if err != nil {
+            Error.Println(err)
+            continue
+        }
+        tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
+        if err != nil {
+            Error.Println(err)
+            continue
+        }
+
+        switch tunPacket.GetCmd() {
+        case TUN_CMD_RESPONSE:
+
+            res, ok := tunPacket.(*TUNResponsePacket)
+            if !ok {
+                Error.Println("Fail to Convert TUN Packet\n"
+                panic()
+                continue
+            }
+
+            c.ServerVAddr, err = net.ResolveIPAddr("ip", res.Server)
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
+            c.ClientVAddr, err = net.ResolveIPAddr("ip", res.Client)
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
+
+            c.Running = true
+            go c.TUNRecv()
+
+        case TUN_CMD_DATA:
+
+            if c.Running == true{
+
+                t, ok := tunPacket.(*TUNResponsePacket)
+                if !ok {
+                    Error.Println("Fail to Convert TUN Packet\n"
+                    panic()
+                    continue
+                }
+                c.tunnel.Save(c.Buffer, t)
+            }
+        default:
+            Error.Println("Invalid TUN Cmd")
+        }
+    }
+}
 
 func (c *Client) TUNRecv(){
 
@@ -82,45 +135,10 @@ func (c *Client) TUNRecv(){
             continue
         }
 
-        s.DNS.InjectAndSendIPPacket(b[:n])
-    }
-}
-
-func (c *Client) DNSRecv(){
-
-    b := make([]byte, DEF_BUF_SIZE)
-    for {
-        n, addr, err := c.DNSConn.ReadFrom(b)
-        if err != nil{
+        // TODO:
+        err := s.DNS.InjectAndSendIPPacket(b[:n])
+        if err != nil {
             Error.Println(err)
         }
-
-        tun := c.tunnel.Unmarshal(b)
-        switch tun.Cmd {
-        case TUN_CMD_RESPONSE:
-            cmd := tun.ToCmdPacket()
-            c.ServerVAddr, err = net.ResolveIPAddr("ip", cmd.Server)
-            if err != nil {
-                Error.Println(err)
-                continue
-            }
-            c.ClientVAddr, err = net.ResolveIPAddr("ip", cmd.Client)
-            if err != nil {
-                Error.Println(err)
-                continue
-            }
-
-            c.Running = true
-            go c.TUNRecv()
-
-        case TUN_CMD_DATA:
-            if c.Running == true{
-                c.tunnel.Save(c.Buffer, tun)
-            }
-        default:
-            Error.Println("Invalid TUN Cmd")
-        }
     }
 }
-
-

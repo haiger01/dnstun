@@ -39,7 +39,7 @@ func NewDNSClient(laddrstr, ldnsstr, topDomain string) (*DNSUtils, error){
     }
 }
 
-func NewDNSServer(laddr, topDomain string) (*DNSUtils, error){
+func NewDNSServer(laddrstr, topDomain string) (*DNSUtils, error){
 
     d := new(DNSUtils)
     d.kind = DNS_Server
@@ -75,44 +75,54 @@ func (d *DNSUtils) SendTo(p []byte, addr *UDPAddr) error{
 func (d *DNSUtils) Inject(tun *TUNPacket) ([]byte, int, error){
 
     // if in client side: inject into query 
+    if d.kind == DNS_Client {
 
+    }else{
     // if in server side inject into TXT
+
+    }
 }
 
-func (d *DNSUtils) Retreive([]byte) {
+
+/* Given a DNS Packet, Retrieve TUNPacket from it */
+func (d *DNSUtils) Retrieve(dns *DNSPacket) (*TUNPacket, error){
 
 }
 
-func (d *DNSUtils) Pack(*DNSPacket) []byte{
+/* Pack a DNS Packet to byte array */
+func (d *DNSUtils) Pack(*DNSPacket) ([]byte, error){
 
 }
 
-func (d *DNSUtils) Unpack(b []byte) *DNSPacket{
+/* Given a byte array, Retrieve DNS Packet from it */
+func (d *DNSUtils) Unpack(b []byte) (*DNSPacket, error){
 
 }
 
 /* inject ip packet */
-func (d *DNSUtils) InjectAndSendIPPacket(b []byte){
+func (d *DNSUtils) InjectAndSendIPPacket(b []byte) error {
 
-    ipPacket, err := ip.Unmarshal(b[:n]) // TODO
+    ipPacket, err := ip.Pack(b) // TODO
     if err != nil {
-        Error.Println(err)
-        continue
+        //Error.Println(err)
+        return err
     }
 
+    index := 0
     written := 0
     for written < n {
 
-        // inject a ip fragment to DNS Packet
-        // as much as possible
+        // inject a piece to DNS Packet
 
         // TODO
-        dnsPacket, w, err := c.DNS.Inject(ipPacket, b[written:])
+        dnsPacket, w, err := c.DNS.InjectIPPacket(ipPacket, b[written:])
         s.DNS.Send(dnsPacket)
         if err != nil {
-            Error.Println(err)
-            continue
+            //Error.Println(err)
+            return err
         }
         written += w
+        index ++
     }
+    return nil
 }
