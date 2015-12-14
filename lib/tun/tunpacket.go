@@ -9,24 +9,36 @@ const (
     TUN_CMD_RESPONSE byte = 'r'
     TUN_CMD_DATA     byte = 'd'
     TUN_CMD_KILL     byte = 'k'
+    TUN_CMD_EMPTY    byte = 'e' // empty packet, with user id,
+                                // just for server to have more dns id
+    TUN_CMD_NONE     byte = 'n' // no user id, a normal dns request
 )
 
 type TUNPacket interface {
-    GetCmd() byte
+    GetCmd()    byte
+
+    /* The Physical UDP Address for an incoming packet 
+       may change over time, e.g. using different middle 
+       DNS Server. By using User field to identify the source
+       Of a TUN Packet */
+    GetUser()   int
 }
 
 type TUNCmdPacket struct {
     Cmd byte
+    User int
 }
 
 type TUNResponsePacket struct {
     Cmd     byte
+    User    int
     Server   *net.IPAddr
     Client   *net.IPAddr
 }
 
 type TUNIPPacket struct {
     Cmd     byte
+    User    int
     Id      int
     Offset  int
     More    bool
@@ -40,6 +52,15 @@ func (t *TUNResponsePacket) GetCmd() byte{
 }
 func (t *TUNIPPacket) GetCmd() byte{
     return TUN_CMD_DATA
+}
+func (t *TUNCmdPacket) GetUser() int{
+    return t.User
+}
+func (t *TUNResponsePacket) GetUser() int{
+    return t.User
+}
+func (t *TUNIPPacket) GetUser() int{
+    return t.User
 }
 
 /*

@@ -4,12 +4,16 @@ import (
     "net"
     "../tonnerre/golang-dns"
     "../ip"
+    "fmt"
 )
 
 type Conn struct {
 
     VAddr   *net.IPAddr
     PAddr   *net.UDPAddr
+    User    int
+
+    InChan   chan TUNPacket
 
     Buffer  map[int][]byte
     TUN     *Tunnel
@@ -25,7 +29,7 @@ type Server struct {
     VAddr   *net.IPAddr
 
     Routes_By_VAddr  map[string]*Conn
-    Routes_By_PAddr  map[string]*Conn
+    Routes_By_User   map[int]*Conn
 
     DNS     *DNSUtils
     TUN     *Tunnel
@@ -58,10 +62,13 @@ func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error){
     return s, nil
 }
 
-func (s *Server) NewConn(vaddr *net.IPAddr, paddr *net.UDPAddr) (*Conn){
+func (s *Server) NewConn(vaddr *net.IPAddr, user int) (*Conn){
     c := new(Conn)
     c.VAddr = vaddr
-    c.PAddr = paddr
+    //c.PAddr = paddr
+
+    c.InChan = make(chan TUNPacket, 200)
+
     c.TUN = s.TUN
     c.DNS = s.DNS
     c.Buffer = make(map[int][]byte)
@@ -69,17 +76,97 @@ func (s *Server) NewConn(vaddr *net.IPAddr, paddr *net.UDPAddr) (*Conn){
 }
 
 
-func (c *Conn) Recv(t *TUNIPPacket){
-    c.TUN.Save(c.Buffer, t)
+func (c *Conn) Recv(tunPacket TUNPacket) error{
+
+    // cast packet to TUNIPPacket TODO: test if it works
+    t, ok := tunPacket.(*TUNIPPacket)
+    if !ok {
+        return fmt.Errorf("Unexpected cast fail from TUNPacket to TUNIPPacket\n")
+    }
+    err := c.TUN.Save(c.Buffer, t)
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
+
+    //b := make([]byte, 1600)
+
+    reply := new(dns.Msg)
+    reply.SetReply(msg)
+
+    select {
+    case tunPacket := <-c.InChan :
+    // TODO
+    // There're pending TUN Packets, Inject it into DNS Reply Packet
+    // And Send Back
+        Error.Printf("Not Implemented, %s", tunPacket.GetUser())
+
+    default:
+    // TODO
+    // there's no pending TUN Packet to be sent,
+    // just reply the request
+
+        domain := msg.Question[0].Name
+        txt, err := dns.NewRR(domain + " 1 IN TXT abcdeabcde")
+        reply.Answer = make([]dns.RR, 1)
+        reply.Answer[0] = txt
+
+        b, err := reply.Pack()
+        if err != nil {
+            Error.Println(err)
+            return err
+        }
+
+        err = c.DNS.SendTo(paddr, b)
+        if err != nil{
+            Error.Println(err)
+            return err
+        }
+    }
+
+    return nil
 }
 
 func (s *Server) AcquireVAddr() *net.IPAddr{
     //addr := new(net.IPAddr)
     //*addr = *s.NextIPAddr
+    // TODO
+
+    addr, err := net.ResolveIPAddr("ip4", "192.168.3.4")
+    if err != nil{
+        Error.Println(err)
+        return nil
+    }
+    return addr
+}
+func (s *Server) AcquireUser()  int{
 
     // TODO
-    Error.Println("Not Implemented")
-    return nil
+
+    return 124
+}
+
+func (s *Server) FindConnByVAddr(addr string) (*Conn, error){
+
+    conn, ok := s.Routes_By_VAddr[addr]
+    if !ok {
+        return nil, fmt.Errorf("Cannot find Connection for Addr %s\n",
+                    addr)
+    }
+    return conn, nil
+}
+
+func (s *Server) FindConnByUser(user int) (*Conn, error){
+
+    conn, ok := s.Routes_By_User[user]
+    if !ok {
+        return nil, fmt.Errorf("Cannot find Connection for User %d\n",
+                    user)
+    }
+    return conn, nil
 }
 
 func (s *Server) DNSRecv(){
@@ -94,7 +181,6 @@ func (s *Server) DNSRecv(){
 
         dnsPacket := new(dns.Msg)
         err = dnsPacket.Unpack(b[:n])
-        //dnsPacket, err := s.DNS.Unpack(b[:n]) // TODO
         if err != nil {
             Error.Println(err)
             continue
@@ -109,11 +195,12 @@ func (s *Server) DNSRecv(){
         case TUN_CMD_CONNECT:
 
             rvaddr := s.AcquireVAddr()  //TODO
+            user := s.AcquireUser()     // TODO
 
             // create new connection for the client
-            conn := s.NewConn(rvaddr, rpaddr)
+            conn := s.NewConn(rvaddr, user)
             s.Routes_By_VAddr[rvaddr.String()] = conn
-            s.Routes_By_PAddr[rpaddr.String()] = conn
+            s.Routes_By_User[user] = conn
 
             t := new(TUNResponsePacket)
             t.Cmd = TUN_CMD_RESPONSE
@@ -139,38 +226,76 @@ func (s *Server) DNSRecv(){
             }
 
             Debug.Printf("Connected with %s\n", conn.PAddr.String())
-
-        case TUN_CMD_DATA:
-
-            conn, ok := s.Routes_By_PAddr[rpaddr.String()]
-            if !ok {
-                Debug.Println("Cannot find Connection for %s\n", rpaddr.String())
-                continue
-            }
-
-            // cast packet to TUNIPPacket TODO: test if it works
-            t, ok := tunPacket.(*TUNIPPacket)
-            if !ok {
-                Error.Printf("Unexpected cast fail from TUNPacket to TUNIPPacket\n")
-                continue
-            }else{
-                conn.Recv(t)
-            }
-
+            continue
         case TUN_CMD_KILL:
 
-            conn, ok := s.Routes_By_PAddr[rpaddr.String()]
-            if !ok {
-                Debug.Println("Cannot find Conn for %s\n", rpaddr.String())
+            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            if err != nil {
+                Error.Println(err)
                 continue
             }
 
-            delete(s.Routes_By_PAddr, conn.PAddr.String())
+            delete(s.Routes_By_User, conn.User)
             delete(s.Routes_By_VAddr, conn.VAddr.String())
             Debug.Printf("Close Conn with %s\n", conn.VAddr.String())
 
+        case TUN_CMD_DATA:
+
+            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
+
+            err = conn.Recv(tunPacket)
+            if err != nil{
+                Error.Println(err)
+                continue
+            }
+
+            err = conn.Reply(dnsPacket, rpaddr)
+            if err != nil{
+                Error.Println(err)
+            }
+
+        case TUN_CMD_EMPTY:
+            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
+            err = conn.Reply(dnsPacket, rpaddr)
+            if err != nil{
+                Error.Println(err)
+            }
+
+        case TUN_CMD_NONE:
+            b := make([]byte, 1600)
+
+            msg := dnsPacket
+            reply := new(dns.Msg)
+            reply.SetReply(msg)
+
+            domain := msg.Question[0].Name
+            txt, err := dns.NewRR(domain + " 1 IN TXT abcdeabcde")
+            reply.Answer = make([]dns.RR, 1)
+            reply.Answer[0] = txt
+
+            b, err = reply.Pack()
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
+
+            err = s.DNS.SendTo(rpaddr, b)
+            if err != nil{
+                Error.Println(err)
+                continue
+            }
+
         default:
-            Error.Println("Invalid TUN Cmd")
+            // Reply with normal DNS Response
+            Error.Println("Invalid TUN Cmd -- Not Implemented")
         }
     }
 }
@@ -197,16 +322,47 @@ func (s *Server) TUNRecv(){
             ip.IPAddrInt2Str(ippkt.Header.Dst))
 
         rvaddrStr := ip.IPAddrInt2Str(ippkt.Header.Dst)
+
+        conn, err := s.FindConnByVAddr(rvaddrStr)
+        if err != nil{
+            Debug.Println(err)
+            continue
+        }
+
+        /*
         conn, ok := s.Routes_By_VAddr[rvaddrStr]
         if !ok {
             Debug.Printf("Connection to vip %s not found\n", rvaddrStr)
             continue
-        }
+        }*/
 
-        err = s.DNS.InjectAndSendTo(b[:n], conn.PAddr )
+        tunPacket := new(TUNIPPacket)
+        tunPacket.Cmd = TUN_CMD_DATA
+        tunPacket.Id = int(ippkt.Header.Id)
+        tunPacket.Offset = 0
+        tunPacket.More = false
+        tunPacket.Payload = b[:n]
+
+        conn.InChan <- tunPacket
+
+        /*
+        msgs, err := s.DNS.Inject(tunPacket)
         if err != nil {
             Error.Println(err)
             continue
         }
+
+        for i:=0; i<len(msgs); i++{
+            conn.InChan <- msgs[i]
+            continue
+        }*/
+
+
+        /*
+        err = s.DNS.InjectAndSendTo(b[:n], conn.PAddr )
+        if err != nil {
+            Error.Println(err)
+            continue
+        }*/
     }
 }

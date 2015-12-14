@@ -118,7 +118,13 @@ func (d *DNSUtils) Retrieve(dns *dns.Msg) (TUNPacket, error){
     default:
         return fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
     }*/
-    return nil, fmt.Errorf("Not Implement\n")
+
+    t := new(TUNCmdPacket)
+    t.Cmd  = TUN_CMD_NONE
+    t.User = 0
+
+
+    return t, fmt.Errorf("Not Implement\n")
 }
 
 /* Pack a DNS Packet to byte array */
