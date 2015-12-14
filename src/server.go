@@ -24,7 +24,6 @@ func main(){
     }
 
     go server.DNSRecv()
-    go server.TUNRecv()
+    server.TUNRecv()
 
-    return
 }

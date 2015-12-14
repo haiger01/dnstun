@@ -185,6 +185,7 @@ func (s *Server) DNSRecv(){
             Error.Println(err)
             continue
         }
+
         tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
         if err != nil {
             Error.Println(err)
@@ -277,7 +278,8 @@ func (s *Server) DNSRecv(){
             reply.SetReply(msg)
 
             domain := msg.Question[0].Name
-            txt, err := dns.NewRR(domain + " 1 IN TXT abcdeabcde")
+            txt, err := dns.NewRR(domain + " 0 IN TXT abcdeabcde")
+
             reply.Answer = make([]dns.RR, 1)
             reply.Answer[0] = txt
 

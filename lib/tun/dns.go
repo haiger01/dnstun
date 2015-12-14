@@ -123,6 +123,7 @@ func (d *DNSUtils) Retrieve(dns *dns.Msg) (TUNPacket, error){
     t.Cmd  = TUN_CMD_NONE
     t.User = 0
 
+    return t, nil
 
     return t, fmt.Errorf("Not Implement\n")
 }
