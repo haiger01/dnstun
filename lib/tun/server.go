@@ -1,23 +1,19 @@
 package tun
 
 import (
-    "log"
-    "os"
-    "fmt"
-    "../ip"
-    "../songgao/water"
-    //"../songgao/water/waterutil"
+    "net"
     "../tonnerre/golang-dns"
+    "../ip"
 )
 
 type Conn struct {
 
-    VAddr   *IPAddr
-    PAddr   *UDPAddr
+    VAddr   *net.IPAddr
+    PAddr   *net.UDPAddr
 
     Buffer  map[int][]byte
     TUN     *Tunnel
-    DNS     *DNSUtls
+    DNS     *DNSUtils
 }
 
 type Server struct {
@@ -26,7 +22,7 @@ type Server struct {
     //LAddr   *UDPAddr
 
     /* Virtual Address in TUN Virtual Interface */
-    VAddr   *IPAddr
+    VAddr   *net.IPAddr
 
     Routes_By_VAddr  map[string]*Conn
     Routes_By_PAddr  map[string]*Conn
@@ -44,7 +40,8 @@ func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error){
         return nil, err
     }*/
 
-    s.VAddr, err := net.ResolveIPAddr("ip", vaddr)
+    var err error
+    s.VAddr, err = net.ResolveIPAddr("ip", vaddr)
     if err != nil {
         return nil, err
     }
@@ -61,7 +58,7 @@ func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error){
     return s, nil
 }
 
-func (s *Server) NewConn(vaddr *IPAddr, paddr *UDPAddr) (*Conn){
+func (s *Server) NewConn(vaddr *net.IPAddr, paddr *net.UDPAddr) (*Conn){
     c := new(Conn)
     c.VAddr = vaddr
     c.PAddr = paddr
@@ -76,29 +73,28 @@ func (c *Conn) Recv(t *TUNIPPacket){
     c.TUN.Save(c.Buffer, t)
 }
 
-func (s *Server) AcquireVAddr() *IPAddr{
-    addr := new(IPAddr)
-    *addr = *s.NextIPAddr
+func (s *Server) AcquireVAddr() *net.IPAddr{
+    //addr := new(net.IPAddr)
+    //*addr = *s.NextIPAddr
 
     // TODO
-}
-
-func (s *Server) FindByPAddr(addr *UDPAddr) *Conn, error {
-
-    conn, ok := s.Routes_By_PAddr(addr.String())
-    return conn, ok
+    Error.Println("Not Implemented")
+    return nil
 }
 
 func (s *Server) DNSRecv(){
 
     b := make([]byte, DEF_BUF_SIZE)
     for {
-        n, rpaddr, err := s.DNS.conn.ReadFromUDP(b)
+        n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
         if err != nil{
             Error.Println(err)
+            continue
         }
 
-        dnsPacket, err := s.DNS.Unpack(b[:n]) // TODO
+        dnsPacket := new(dns.Msg)
+        err = dnsPacket.Unpack(b[:n])
+        //dnsPacket, err := s.DNS.Unpack(b[:n]) // TODO
         if err != nil {
             Error.Println(err)
             continue
@@ -121,26 +117,32 @@ func (s *Server) DNSRecv(){
 
             t := new(TUNResponsePacket)
             t.Cmd = TUN_CMD_RESPONSE
-            t.LAddr = s.VAddr    // server's virtual ip address
-            t.RAddr = rvaddr     // client's virtual ip address
+            t.Server = s.VAddr    // server's virtual ip address
+            t.Client = rvaddr     // client's virtual ip address
 
-            dnsPacket, _, err := s.DNS.Inject(t) // TODO
+            msgs, err := s.DNS.Inject(t) // TODO
             if err != nil {
                 Error.Println(err)
                 continue
             }
 
-            err = s.DNS.SendTo( conn.PAddr, dnsPacket)
+            if len(msgs) != 1 {
+                Error.Println("CONNECT: should be one DNS Packet\n")
+                continue
+            }
+
+            binary, err := msgs[0].Pack()
+            err = s.DNS.SendTo( conn.PAddr, binary)
             if err != nil {
                 Error.Println(err)
                 continue
             }
 
-            Debug.Printf("Connected with %s\n", addr.String())
+            Debug.Printf("Connected with %s\n", conn.PAddr.String())
 
         case TUN_CMD_DATA:
 
-            conn, ok := s.Routes_By_PAddr(rpaddr.String())
+            conn, ok := s.Routes_By_PAddr[rpaddr.String()]
             if !ok {
                 Debug.Println("Cannot find Connection for %s\n", rpaddr.String())
                 continue
@@ -148,7 +150,7 @@ func (s *Server) DNSRecv(){
 
             // cast packet to TUNIPPacket TODO: test if it works
             t, ok := tunPacket.(*TUNIPPacket)
-            if ok != nil {
+            if !ok {
                 Error.Printf("Unexpected cast fail from TUNPacket to TUNIPPacket\n")
                 continue
             }else{
@@ -157,7 +159,7 @@ func (s *Server) DNSRecv(){
 
         case TUN_CMD_KILL:
 
-            conn, ok := s.Routes_By_PAddr(rpaddr.String())
+            conn, ok := s.Routes_By_PAddr[rpaddr.String()]
             if !ok {
                 Debug.Println("Cannot find Conn for %s\n", rpaddr.String())
                 continue
@@ -175,7 +177,7 @@ func (s *Server) DNSRecv(){
 
 func (s *Server) TUNRecv(){
 
-    b = make([]byte, DEF_BUF_SIZE )
+    b := make([]byte, DEF_BUF_SIZE )
     for {
 
         n, err := s.TUN.Read(b)
@@ -185,7 +187,7 @@ func (s *Server) TUNRecv(){
         }
 
         ippkt := new(ip.IPPacket)
-        err := ippkt.Unmarshal(b[:n])
+        err = ippkt.Unmarshal(b[:n])
         if err != nil {
             Error.Println(err)
             continue
@@ -194,14 +196,14 @@ func (s *Server) TUNRecv(){
             ip.IPAddrInt2Str(ippkt.Header.Src),
             ip.IPAddrInt2Str(ippkt.Header.Dst))
 
-        rvaddrStr := ip.IPAddrInt2Str(ippkt.Header.Dst))
+        rvaddrStr := ip.IPAddrInt2Str(ippkt.Header.Dst)
         conn, ok := s.Routes_By_VAddr[rvaddrStr]
         if !ok {
             Debug.Printf("Connection to vip %s not found\n", rvaddrStr)
             continue
         }
 
-        err := s.DNS.InjectAndSendTo(b[:n], conn.PAddr )
+        err = s.DNS.InjectAndSendTo(b[:n], conn.PAddr )
         if err != nil {
             Error.Println(err)
             continue

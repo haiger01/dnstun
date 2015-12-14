@@ -1,5 +1,10 @@
 package tun
 
+import (
+    "fmt"
+    "../songgao/water"
+)
+
 type Tunnel struct {
     name    string
     conn    *water.Interface
@@ -9,34 +14,38 @@ func NewTunnel(name string) (*Tunnel, error){
 
     t := new(Tunnel)
     t.name = name
+
+    var err error
     t.conn, err = water.NewTUN(name)
     if err != nil {
-        return err
+        return nil, err
     }
+    return t, nil
 }
 
 func (t *Tunnel) Write(p []byte) error{
 
-    n, err := t.ifce.Write(pkt)
+    n, err := t.conn.Write(p)
     if err != nil {
         return err
     }
-    if n != len(pkt){
-        return fmt.Errorf("Short write %d, should be %d", n, len(pkt))
+    if n != len(p){
+        return fmt.Errorf("Short write %d, should be %d", n, len(p))
     }
+    return nil
 }
 
 func (t *Tunnel) Save(buffer map[int][]byte, tun *TUNIPPacket) error{
 
     if tun.Offset == 0 && tun.More == false {
         pkt := tun.Payload
-        t.Write(pkt)   // send to upper layer
+        t.conn.Write(pkt)   // send to upper layer
         return nil
     }
     pkt, ok := buffer[tun.Id]
     if ok {
         if tun.Offset == len(pkt) {
-            pkt := append(pkt, tun.Payload)
+            pkt := append(pkt, tun.Payload...)
             if tun.More == false{
                 t.Write(pkt)
                 delete(buffer, tun.Id)
@@ -50,7 +59,7 @@ func (t *Tunnel) Save(buffer map[int][]byte, tun *TUNIPPacket) error{
     return nil
 }
 
-func (t *Tunnel) Read(p []byte) (int, err){
+func (t *Tunnel) Read(p []byte) (int, error){
     n, err := t.conn.Read(p)
     return n, err
 }

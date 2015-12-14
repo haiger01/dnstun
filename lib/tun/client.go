@@ -1,14 +1,10 @@
 package tun
 
 import (
-    "log"
-    "os"
-    "fmt"
-    "..//ip"
-    "../songgao/water"
-    //"../songgao/water/waterutil"
+    "net"
     "../tonnerre/golang-dns"
 )
+
 
 type Client struct {
     ClientVAddr     *net.IPAddr
@@ -31,6 +27,7 @@ func NewClient(topDomain, ldns, laddr, tunName string) (*Client, error) {
     c.ClientVAddr = nil
     c.ServerVAddr = nil
 
+    var err error
     c.DNS, err = NewDNSClient(laddr, ldns, topDomain)
     if err != nil {
         return nil, err
@@ -47,11 +44,11 @@ func NewClient(topDomain, ldns, laddr, tunName string) (*Client, error) {
 func (c *Client) Connect() error {
 
     // Create a TUN Packet
-    tunPacket = new(TUNCmdPacket)
-    tunPacket.Cmd = TUN_CMD_CREATE
+    tunPacket := new(TUNCmdPacket)
+    tunPacket.Cmd = TUN_CMD_CONNECT
 
     // Inject the TUN Packet to a DNS Packet
-    dnsPacket, err := c.DNS.Inject(tunPacket)
+    msgs, err := c.DNS.Inject(tunPacket)
     if err != nil {
         return err
     }
@@ -60,9 +57,15 @@ func (c *Client) Connect() error {
     go c.DNSRecv()
 
     // Send DNS Packet to Local DNS Server
-    err := c.DNS.Send(dnsPacket)
-    if err != nil {
-        return err
+    for i:= 0; i<len(msgs); i++{
+        packet, err := msgs[i].Pack()
+        if err != nil {
+            return err
+        }
+        err = c.DNS.Send(packet)
+        if err != nil {
+            return err
+        }
     }
     return nil
 }
@@ -72,17 +75,18 @@ func (c *Client) DNSRecv(){
     b := make([]byte, DEF_BUF_SIZE)
     for {
         // rpaddr : the public UDP Addr of remote DNS Server
-        n, rpaddr, err := c.DNSConn.ReadFrom(b)
+        n, _, err := c.DNS.Conn.ReadFrom(b)
         if err != nil{
             Error.Println(err)
         }
 
-        dnsPacket, err := s.DNS.Unpack(b[:n]) // TODO
+        dnsPacket := new(dns.Msg)
+        err = dnsPacket.Unpack(b[:n])
         if err != nil {
             Error.Println(err)
             continue
         }
-        tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
+        tunPacket, err := c.DNS.Retrieve(dnsPacket) // TODO
         if err != nil {
             Error.Println(err)
             continue
@@ -93,12 +97,17 @@ func (c *Client) DNSRecv(){
 
             res, ok := tunPacket.(*TUNResponsePacket)
             if !ok {
-                Error.Println("Fail to Convert TUN Packet\n"
-                panic()
+                Error.Println("Fail to Convert TUN Packet\n")
                 continue
             }
 
-            c.ServerVAddr, err = net.ResolveIPAddr("ip", res.Server)
+            c.ServerVAddr  = new(net.IPAddr)
+            c.ClientVAddr  = new(net.IPAddr)
+            *c.ServerVAddr = *res.Server
+            *c.ClientVAddr = *res.Client
+
+            /*
+            *(c.ServerVAddr)("ip", res.Server)
             if err != nil {
                 Error.Println(err)
                 continue
@@ -107,7 +116,7 @@ func (c *Client) DNSRecv(){
             if err != nil {
                 Error.Println(err)
                 continue
-            }
+            }*/
 
             c.Running = true
             go c.TUNRecv()
@@ -116,13 +125,12 @@ func (c *Client) DNSRecv(){
 
             if c.Running == true{
 
-                t, ok := tunPacket.(*TUNResponsePacket)
+                t, ok := tunPacket.(*TUNIPPacket)
                 if !ok {
-                    Error.Println("Fail to Convert TUN Packet\n"
-                    panic()
+                    Error.Println("Fail to Convert TUN Packet\n")
                     continue
                 }
-                c.tunnel.Save(c.Buffer, t)
+                c.TUN.Save(c.Buffer, t)
             }
         default:
             Error.Println("Invalid TUN Cmd")
@@ -132,7 +140,7 @@ func (c *Client) DNSRecv(){
 
 func (c *Client) TUNRecv(){
 
-    b = make([]byte, DEF_BUF_SIZE )
+    b := make([]byte, DEF_BUF_SIZE )
     for c.Running == true {
 
         n, err := c.TUN.Read(b)
@@ -141,7 +149,7 @@ func (c *Client) TUNRecv(){
             continue
         }
 
-        err := c.DNS.InjectAndSendTo(b[:n], c.DNS.LDns)
+        err = c.DNS.InjectAndSendTo(b[:n], c.DNS.LDns)
         if err != nil {
             Error.Println(err)
             continue

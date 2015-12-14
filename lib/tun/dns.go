@@ -1,17 +1,26 @@
 package tun
+import (
+    "net"
+    "fmt"
+    "strings"
+    "encoding/base32"
+    "strconv"
+    "../tonnerre/golang-dns"
+    "../ip"
+)
 
-const {
+const (
     DNS_Client  int = 0
     DNS_Server  int = 1
-}
+)
 
-type struct DNSUtils {
+type DNSUtils struct {
 
     Kind    int
     Conn    *net.UDPConn
     TopDomain     string
-    LAddr   *UDPAddr
-    LDns    *UDPAddr
+    LAddr   *net.UDPAddr
+    LDns    *net.UDPAddr
 }
 
 func NewDNSClient(laddrstr, ldnsstr, topDomain string) (*DNSUtils, error){
@@ -20,6 +29,7 @@ func NewDNSClient(laddrstr, ldnsstr, topDomain string) (*DNSUtils, error){
     d.Kind = DNS_Client
     d.TopDomain = topDomain
 
+    var err error
     d.LDns, err = net.ResolveUDPAddr("udp", ldnsstr)
     if err != nil {
         return nil, err
@@ -35,6 +45,7 @@ func NewDNSClient(laddrstr, ldnsstr, topDomain string) (*DNSUtils, error){
     if err != nil {
         return nil, err
     }
+    return d, nil
 }
 
 func NewDNSServer(laddrstr, topDomain string) (*DNSUtils, error){
@@ -43,6 +54,7 @@ func NewDNSServer(laddrstr, topDomain string) (*DNSUtils, error){
     d.Kind = DNS_Server
     d.TopDomain = topDomain
 
+    var err error
     d.LAddr, err = net.ResolveUDPAddr("udp", laddrstr)
     if err != nil {
         return nil, err
@@ -54,39 +66,48 @@ func NewDNSServer(laddrstr, topDomain string) (*DNSUtils, error){
     if err != nil {
         return nil, err
     }
+    return d, nil
 }
 
 func (d *DNSUtils) Send(p []byte) error{
     if d.Kind != DNS_Client {
-        return fmt.Errorln("Send: Only used by Client\n")
+        return fmt.Errorf("Send: Only used by Client\n")
     }
     _, err :=  d.Conn.WriteToUDP(p, d.LDns)
     return err
 }
 
-func (d *DNSUtils) SendTo(addr *UDPAddr, p []byte) error{
+func (d *DNSUtils) SendTo(addr *net.UDPAddr, p []byte) error{
 
     _, err := d.Conn.WriteToUDP(p, addr)
     return err
 }
 
-func (d *DNSUtils) Inject(tun *TUNPacket) ([]*dnsMsg, error){
+func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error){
 
     switch tun.GetCmd() {
     case TUN_CMD_DATA:
-        return InjectIPPacket(tun.Id, tun.Payload)
-    case TUN_CMD_CREAT, TUN_CMD_KILL:
+
+        t, ok := tun.(*TUNIPPacket)
+        if !ok {
+            return nil, fmt.Errorf("Invail Conversion\n")
+        }
+        return d.InjectIPPacket(uint16(t.Id), t.Payload)
+    case TUN_CMD_CONNECT, TUN_CMD_KILL:
         // TODO
     case TUN_CMD_RESPONSE:
         // TODO
     default:
-        return fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
+        return nil, fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
     }
+
+    return nil, fmt.Errorf("Not Implement\n")
 }
 
 /* Given a DNS Packet, Retrieve TUNPacket from it */
-func (d *DNSUtils) Retrieve(dns *dns.Msg) (*TUNPacket, error){
+func (d *DNSUtils) Retrieve(dns *dns.Msg) (TUNPacket, error){
 
+    /*
     switch tun.GetCmd() {
     case TUN_CMD_DATA:
         return d.InjectIPPacket(tun.Id, tun.Payload)
@@ -96,20 +117,23 @@ func (d *DNSUtils) Retrieve(dns *dns.Msg) (*TUNPacket, error){
         // TODO
     default:
         return fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
-    }
+    }*/
+    return nil, fmt.Errorf("Not Implement\n")
 }
 
 /* Pack a DNS Packet to byte array */
+/*
 func (d *DNSUtils) Pack(*dns.Msg) ([]byte, error){
 
-}
+}*/
 
 /* Given a byte array, Retrieve DNS Packet from it */
-func (d *DNSUtils) Unpack(b []byte) (*dnsMsg, error){
+/*
+func (d *DNSUtils) Unpack(b []byte) (*dns.Msg, error){
 
-}
+}*/
 
-func (t *TUNIPPacket) injectToLabels(b []byte) ([]string, error) {
+func (d *DNSUtils) injectToLabels(b []byte) ([]string, error) {
 
     encodedStr := base32.StdEncoding.EncodeToString(b)
 
@@ -142,7 +166,7 @@ func (t *TUNIPPacket) injectToLabels(b []byte) ([]string, error) {
 	return labelsArr, nil
 }
 
-func (d *DNSUtils) InjectIPPacket(uint16 id, b []byte) ([]*dns.Msg, error){
+func (d *DNSUtils) InjectIPPacket(id uint16, b []byte) ([]*dns.Msg, error){
 
     msgs := make([]*dns.Msg, 0)
 
@@ -167,9 +191,9 @@ func (d *DNSUtils) InjectIPPacket(uint16 id, b []byte) ([]*dns.Msg, error){
             }
 
             idxStr := strconv.Itoa(i)
-            domainLabels := []string{encodedStr, ipIdStr, mf, idxStr, cmdStr, d.TopDomain}
+            domainLabels := []string{encodedStr, idStr, mf, idxStr, string(cmdStr), d.TopDomain}
 
-            domain := strings.Join(domainLabels, "."),
+            domain := strings.Join(domainLabels, ".")
 
             if len(msgs) >= 253 {
                 return nil, fmt.Errorf("Packed Msg Size %d > 253\n", msgs)
@@ -189,7 +213,7 @@ func (d *DNSUtils) InjectIPPacket(uint16 id, b []byte) ([]*dns.Msg, error){
 }
 
 /* inject ip packet */
-func (d *DNSUtils) InjectAndSendTo(b []byte, addr *UPDAddr) error {
+func (d *DNSUtils) InjectAndSendTo(b []byte, addr *net.UDPAddr) error {
 
     ippkt := new(ip.IPPacket)
     err := ippkt.Unmarshal(b)
@@ -201,9 +225,9 @@ func (d *DNSUtils) InjectAndSendTo(b []byte, addr *UPDAddr) error {
 
     t := new(TUNIPPacket)
     t.Cmd = TUN_CMD_DATA
-    t.Id = id
+    t.Id = int(id)
     t.More = false
-    t.Index = 0
+    t.Offset = 0
     t.Payload = b
 
     msgs, err := d.Inject(t)
@@ -212,7 +236,13 @@ func (d *DNSUtils) InjectAndSendTo(b []byte, addr *UPDAddr) error {
     }
 
     for i:=0 ; i<len(msgs) ; i++{
-        err := d.SendTo(addr, msgs[i])
+
+        pkt, err := msgs[i].Pack()
+        if err != nil {
+            return err
+        }
+
+        err = d.SendTo(addr, pkt)
         if err != nil {
             return err
         }

@@ -1,5 +1,9 @@
 package tun
 
+import (
+    "net"
+)
+
 const (
     TUN_CMD_CONNECT  byte = 'c'
     TUN_CMD_RESPONSE byte = 'r'
@@ -17,14 +21,14 @@ type TUNCmdPacket struct {
 
 type TUNResponsePacket struct {
     Cmd     byte
-    LAddr   *IPAddr
-    RAddr   *IPAddr
+    Server   *net.IPAddr
+    Client   *net.IPAddr
 }
 
 type TUNIPPacket struct {
     Cmd     byte
     Id      int
-    Index   int
+    Offset  int
     More    bool
     Payload []byte
 }
@@ -38,7 +42,7 @@ func (t *TUNIPPacket) GetCmd() byte{
     return TUN_CMD_DATA
 }
 
-
+/*
 func (t *TUNPacket) Unpack(domain string) (*TUNPacket, error){
 
     // TODO: TUNCmdPacket, TUNResponsePacket
@@ -69,5 +73,5 @@ func (t *TUNPacket) Unpack(domain string) (*TUNPacket, error){
 	outPacket.EncodedStr = raw
 	return outPacket, nil
 }
-
+*/
 

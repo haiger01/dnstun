@@ -4,6 +4,7 @@ import (
     "flag"
     "bufio"
     "os"
+    "strings"
     "../lib/tun"
 )
 
