@@ -3,6 +3,7 @@ package main
 import (
     "flag"
     "bufio"
+    "os"
 )
 
 func testPing(){

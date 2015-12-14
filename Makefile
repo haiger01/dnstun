@@ -2,12 +2,13 @@
 
 all: client server
 
-client:
-	go build -o bin/client src/client.go
+libs: lib/ip lib/songgao lib/tonnerre
 
-server:
-	go build -o bin/server src/server.go
-	go build -o bin/debug src/server-debug.go
+client: libs
+	go build -o bin/client src/drivec.go
+
+server: libs
+	go build -o bin/server src/*.go
 
 bin-dir:
 	mkdir -p bin

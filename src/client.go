@@ -4,6 +4,7 @@ import (
     "log"
     "os"
     "fmt"
+    "../lib/ip"
     "../lib/songgao/water"
     //"../lib/songgao/water/waterutil"
     "../lib/tonnerre/golang-dns"
@@ -30,7 +31,6 @@ func NewClient(topDomain, ldns, laddr, tunName string) (*Client, error) {
     c.ClientVAddr = nil
     c.ServerVAddr = nil
 
-    // TODO
     c.DNS, err = NewDNSClient(laddr, ldns, topDomain)
     if err != nil {
         return nil, err
@@ -51,14 +51,20 @@ func (c *Client) Connect() error {
     tunPacket.Cmd = TUN_CMD_CREATE
 
     // Inject the TUN Packet to a DNS Packet
-    // TODO
-    dnsPacket, err := c.DNS.Inject(tunCmd)
+    dnsPacket, err := c.DNS.Inject(tunPacket)
+    if err != nil {
+        return err
+    }
 
     // Listening on the port, wating for incoming DNS Packet
     go c.DNSRecv()
 
     // Send DNS Packet to Local DNS Server
-    c.DNS.Send(dnsPacket)
+    err := c.DNS.Send(dnsPacket)
+    if err != nil {
+        return err
+    }
+    return nil
 }
 
 func (c *Client) DNSRecv(){
@@ -135,10 +141,10 @@ func (c *Client) TUNRecv(){
             continue
         }
 
-        // TODO:
-        err := s.DNS.InjectAndSendIPPacket(b[:n])
+        err := c.DNS.InjectAndSendTo(b[:n], c.DNS.LDns)
         if err != nil {
             Error.Println(err)
+            continue
         }
     }
 }

@@ -1,41 +1,4 @@
-
-const (
-    TUN_CMD_CONNECT  byte = 'c'
-    TUN_CMD_RESPONSE byte = 'r'
-    TUN_CMD_DATA     byte = 'd'
-    TUN_CMD_KILL     byte = 'k'
-)
-
-type TUNPacket interface {
-    GetCmd() byte
-}
-
-type TUNCmdPacket struct {
-    Cmd byte
-}
-
-type TUNResponsePacket struct {
-    Cmd     byte
-    LAddr   *IPAddr
-    RAddr   *IPAddr
-}
-
-type TUNIPPacket struct {
-    Cmd     byte
-    Id      int
-    Offset  int
-    More    int
-    Payload []byte
-}
-func (t *TUNCmdPacket) GetCmd() byte{
-    return t.Cmd
-}
-func (t *TUNResponsePacket) GetCmd() byte{
-    return TUN_CMD_RESPONSE
-}
-func (t *TUNIPPacket) GetCmd() byte{
-    return TUN_CMD_DATA
-}
+package main
 
 type Tunnel struct {
     name    string

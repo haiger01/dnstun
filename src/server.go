@@ -4,6 +4,7 @@ import (
     "log"
     "os"
     "fmt"
+    "../lib/ip"
     "../lib/songgao/water"
     //"../lib/songgao/water/waterutil"
     "../lib/tonnerre/golang-dns"
@@ -75,11 +76,6 @@ func (c *Conn) Recv(t *TUNIPPacket){
     c.TUN.Save(c.Buffer, t)
 }
 
-// TODO
-func (c *Conn) Send(p *IPPacket){
-
-}
-
 func (s *Server) AcquireVAddr() *IPAddr{
     addr := new(IPAddr)
     *addr = *s.NextIPAddr
@@ -134,7 +130,7 @@ func (s *Server) DNSRecv(){
                 continue
             }
 
-            err = s.DNS.SendTo(dnsPacket, conn.VAddr)
+            err = s.DNS.SendTo( conn.PAddr, dnsPacket)
             if err != nil {
                 Error.Println(err)
                 continue
@@ -180,7 +176,7 @@ func (s *Server) DNSRecv(){
 func (s *Server) TUNRecv(){
 
     b = make([]byte, DEF_BUF_SIZE )
-    for s.Running == true {
+    for {
 
         n, err := s.TUN.Read(b)
         if err != nil {
@@ -188,32 +184,27 @@ func (s *Server) TUNRecv(){
             continue
         }
 
-        ipPacket, err := ip.Pack(b) // TODO
+        ippkt := new(ip.IPPacket)
+        err := ippkt.Unmarshal(b[:n])
         if err != nil {
             Error.Println(err)
             continue
         }
+        Debug.Printf("TUN: IP Packet from %s to %s\n",
+            ip.IPAddrInt2Str(ippkt.Header.Src),
+            ip.IPAddrInt2Str(ippkt.Header.Dst))
 
-        // TODO
-        rvaddr := ipPacket.DstAddr
-
-        conn, ok := s.Routes_By_VAddr[rvaddr.String()]
+        rvaddrStr := ip.IPAddrInt2Str(ippkt.Header.Dst))
+        conn, ok := s.Routes_By_VAddr[rvaddrStr]
         if !ok {
-            Debug.Printf("Connection to vip %s not found\n", rvaddr.String())
+            Debug.Printf("Connection to vip %s not found\n", rvaddrStr)
             continue
         }
 
-        err := conn.Send(ipPacket)
+        err := s.DNS.InjectAndSendTo(b[:n], conn.PAddr )
         if err != nil {
             Error.Println(err)
             continue
         }
-
-        // TODO:
-        /*
-        err := s.DNS.InjectAndSendIPPacket(b[:n])
-        if err != nil {
-            Error.Println(err)
-        }*/
     }
 }
