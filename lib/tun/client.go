@@ -3,12 +3,14 @@ package tun
 import (
     "net"
     "../tonnerre/golang-dns"
+    "time"
 )
 
 
 type Client struct {
     ClientVAddr     *net.IPAddr
     ServerVAddr     *net.IPAddr
+    UserId          int
 
     DNS             *DNSUtils
     TUN             *Tunnel
@@ -47,8 +49,8 @@ func (c *Client) DNSSendFreeId(){
     for c.Running {
         time.Sleep(10*time.Millisecond)
 
-        t := &TUNCmdPacket{TUN_CMD_EMPTY, c.User}
-
+        t := &TUNCmdPacket{TUN_CMD_EMPTY, c.UserId}
+        _ = t
                 
 
     }

@@ -11,7 +11,7 @@ const (
     TUN_CMD_KILL     byte = 'k'
     TUN_CMD_EMPTY    byte = 'e' // empty packet, with user id,
                                 // just for server to have more dns id
-    TUN_CMD_NORMAL_DNS  byte = 'n' // no user id, a normal dns request
+    TUN_CMD_ACK  byte = 'a' // no user id, a normal dns request
 )
 
 type TUNPacket interface {

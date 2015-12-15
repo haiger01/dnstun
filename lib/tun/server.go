@@ -91,7 +91,7 @@ func (c *Conn) Recv(tunPacket TUNPacket) error{
 }
 
 func (s *Server) NormalReply(msg *dns.Msg, paddr *net.UDPAddr) error{
-
+    return nil
 }
 
 func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
@@ -116,7 +116,7 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
     // just reply the request
 
         // normal reply 
-        t := &TUNCmdPacket{ TUN_CMD_NORMAL_DNS, c.User}
+        t := &TUNCmdPacket{ TUN_CMD_ACK, c.User}
         return c.DNS.Reply(msg, t, paddr)
 
         /*
@@ -263,8 +263,8 @@ func (s *Server) DNSRecv(){
             Debug.Printf("Close Conn with %s\n", conn.VAddr.String())
 
             // normal reply 
-            t := &TUNCmdPacket{TUN_CMD_NORMAL_DNS, conn.User}
-            err := s.DNS.Reply(dnsPacket, t, rpaddr)
+            t := &TUNCmdPacket{TUN_CMD_ACK, conn.User}
+            err = s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
                 continue
@@ -285,8 +285,8 @@ func (s *Server) DNSRecv(){
             }
 
             // normal reply this message
-            t := &TUNCmdPacket{TUN_CMD_NORMAL_DNS, conn.User}
-            err := s.DNS.Reply(dnsPacket, t, rpaddr)
+            t := &TUNCmdPacket{TUN_CMD_ACK, conn.User}
+            err = s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
                 continue
@@ -307,12 +307,13 @@ func (s *Server) DNSRecv(){
                 Error.Println(err)
             }
 
-        case TUN_CMD_NORMAL_DNS:
+        case TUN_CMD_ACK:
             // xxx.domain.com
 
             // normal reply
-            t := &TUNCmdPacket{TUN_CMD_NORMAL_DNS, conn.User}
-            err := s.DNS.Reply(dnsPacket, t, rpaddr)
+            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            t := &TUNCmdPacket{TUN_CMD_ACK, conn.User}
+            err = s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
                 continue
