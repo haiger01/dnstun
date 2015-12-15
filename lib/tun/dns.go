@@ -69,6 +69,23 @@ func NewDNSServer(laddrstr, topDomain string) (*DNSUtils, error){
     return d, nil
 }
 
+func (d *DNSUtils) NewDNSPacket(t TUNPacket) (*dns.Msg, error){
+
+    switch t.GetCmd(){
+    case TUN_CMD_CONNECT:
+        labels := []string{string(TUN_CMD_CONNECT), d.TopDomain}
+        domain := strings.Join(labels, ".")
+
+        msg := new(dns.Msg)
+        msg.SetQuestion(domain, dns.TypeTXT)
+        msg.RecursionDesired = true
+        return msg, nil
+
+    default:
+        return nil, fmt.Errorf("NewDNSPacket: Invalid TUN CMD\n")
+    }
+}
+
 func (d *DNSUtils) Send(p []byte) error{
     if d.Kind != DNS_Client {
         return fmt.Errorf("Send: Only used by Client\n")
@@ -94,8 +111,18 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error){
         }
         return d.InjectIPPacket(uint16(t.Id), t.Payload)
     case TUN_CMD_CONNECT, TUN_CMD_KILL:
+
         // TODO
+        msg, err := d.NewDNSPacket(tun)
+        if err != nil {
+            Error.Println(err)
+            return nil, err
+        }
+        return []*dns.Msg{msg}, nil
+
     case TUN_CMD_RESPONSE:
+
+        Error.Println("Inject for RESPONSE Not Implemented")
         // TODO
     default:
         return nil, fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
