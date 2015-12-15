@@ -242,27 +242,8 @@ func (s *Server) DNSRecv() {
 				continue
 			}
 
-			/*
-			   msgs, err := s.DNS.Inject(t) // TODO
-			   if err != nil {
-			       Error.Println(err)
-			       continue
-			   }
-
-			   if len(msgs) != 1 {
-			       Error.Println("CONNECT: should be one DNS Packet\n")
-			       continue
-			   }
-
-			   binary, err := msgs[0].Pack()
-			   err = s.DNS.SendTo( conn.PAddr, binary)
-			   if err != nil {
-			       Error.Println(err)
-			       continue
-			   }*/
 
 			Debug.Printf("Connected with %s\n", conn.PAddr.String())
-			continue
 
 		case TUN_CMD_KILL:
 

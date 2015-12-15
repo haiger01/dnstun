@@ -107,38 +107,44 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	reply.SetReply(msg)
 
 	switch tun.GetCmd() {
+    case TUN_CMD_RESPONSE:
+        reply.Answer = make([]dns.RR, 1)
+        domain := msg.Question[0].Name
+        ans, err := dns.NewRR(domain + " 0 IN TXT xx")
+        if err != nil {
+            return err
+        }
+        ans.(*dns.TXT).Txt = make([]string, 3)
+        tunPkt, ok := tun.(*TUNResponsePacket)
+        if !ok {
+            return fmt.Errorf("error casting to TUNResponsePacket\n")
+        }
+        serverIpStr := strings.Replace(tunPkt.Server.String(), ".", "_", -1)
+        clientIpStr := strings.Replace(tunPkt.Client.String(), ".", "_", -1)
+        replyDomains := []string{string(TUN_CMD_RESPONSE), strconv.Itoa(tunPkt.UserId), serverIpStr, clientIpStr}
+        replyStr := strings.Join(replyDomains, ".")
+        ans.(*dns.TXT).Txt[0] = replyStr
+        reply.Answer[0] = ans
 	case TUN_CMD_ACK:
 
-		// A
-		// TXT
 
-		domain := msg.Question[0].Name
-		txt, err := dns.NewRR(domain + " 0 IN TXT normaldnsreply")
-
-		reply.Answer = make([]dns.RR, 1)
-		reply.Answer[0] = txt
-
-		b, err := reply.Pack()
-		if err != nil {
-			return err
-		}
-		_ = b
-
-		//err = s.DNS.SendTo(paddr, b)
-		if err != nil {
-			return err
-		}
-
+        return fmt.Errorf("DNS Reply ACK not implemented")
 	case TUN_CMD_DATA:
 		// Encode
 
-		Error.Println("DNS Reply: Not Implemented")
-	case TUN_CMD_RESPONSE:
 		Error.Println("DNS Reply: Not Implemented")
 
 	default:
 		return fmt.Errorf("DNS Reply: Invalid TUN Cmd")
 	}
+    binary, err := reply.Pack()
+    if err != nil{
+        return err
+    }
+    err = d.SendTo(paddr, binary)
+    if err != nil {
+        return err
+    }
 	return nil
 }
 
