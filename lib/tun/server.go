@@ -50,6 +50,9 @@ func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error){
         return nil, err
     }
 
+    s.Routes_By_VAddr = make(map[string]*Conn)
+    s.Routes_By_User = make(map[int]*Conn)
+
     s.DNS, err = NewDNSServer(laddr, topDomain)
     if err != nil {
         return nil, err
@@ -312,6 +315,9 @@ func (s *Server) DNSRecv(){
 
             // normal reply
             conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            if err != nil {
+                fmt.Println("cannot find conn by user")
+            }
             t := &TUNCmdPacket{TUN_CMD_ACK, conn.User}
             err = s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
