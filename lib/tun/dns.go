@@ -230,7 +230,7 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 		// dns packet sent from DNSClient
         t := new(TUNCmdPacket)
         r := in.Question[0]
-		domains := strings.Split(r.Name, ".")
+		domains := strings.Split(r.Name[:len(r.Name)-1], ".") // trim the last '.'from "b.jannotti.com."[-1]
 		n := len(domains)
 		if n < 4 {
 			return nil, fmt.Errorf("unexpecetd domain name format %s\n", r.Name)

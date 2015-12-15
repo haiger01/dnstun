@@ -210,6 +210,8 @@ func (s *Server) DNSRecv() {
 			continue
 		}
 
+        fmt.Println("incoming dnsPacket")
+        fmt.Println(dnsPacket.String())
 		tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
 		if err != nil {
 			Error.Println(err)
