@@ -1,200 +1,217 @@
 package tun
+
 import (
-    "net"
-    "fmt"
-    "strings"
-    "encoding/base32"
-    "strconv"
-    "../tonnerre/golang-dns"
-    "../ip"
+	"../ip"
+	"../tonnerre/golang-dns"
+	"encoding/base32"
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
 )
 
 const (
-    DNS_Client  int = 0
-    DNS_Server  int = 1
+	DNS_Client int = 0
+	DNS_Server int = 1
 )
 
 type DNSUtils struct {
-
-    Kind    int
-    Conn    *net.UDPConn
-    TopDomain     string
-    LAddr   *net.UDPAddr
-    LDns    *net.UDPAddr
+	Kind      int
+	Conn      *net.UDPConn
+	TopDomain string
+	LAddr     *net.UDPAddr
+	LDns      *net.UDPAddr
 }
 
-func NewDNSClient(laddrstr, ldnsstr, topDomain string) (*DNSUtils, error){
+func NewDNSClient(laddrstr, ldnsstr, topDomain string) (*DNSUtils, error) {
 
-    d := new(DNSUtils)
-    d.Kind = DNS_Client
-    d.TopDomain = topDomain
+	d := new(DNSUtils)
+	d.Kind = DNS_Client
+	d.TopDomain = topDomain
 
-    var err error
-    d.LDns, err = net.ResolveUDPAddr("udp", ldnsstr)
-    if err != nil {
-        return nil, err
-    }
+	var err error
+	d.LDns, err = net.ResolveUDPAddr("udp", ldnsstr)
+	if err != nil {
+		return nil, err
+	}
 
-    d.LAddr, err = net.ResolveUDPAddr("udp", laddrstr)
-    if err != nil {
-        return nil, err
-    }
+	d.LAddr, err = net.ResolveUDPAddr("udp", laddrstr)
+	if err != nil {
+		return nil, err
+	}
 
-    /* Listen on UDP address laddr */
-    d.Conn, err = net.ListenUDP("udp", d.LAddr)
-    if err != nil {
-        return nil, err
-    }
-    return d, nil
+	/* Listen on UDP address laddr */
+	d.Conn, err = net.ListenUDP("udp", d.LAddr)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
-func NewDNSServer(laddrstr, topDomain string) (*DNSUtils, error){
+func NewDNSServer(laddrstr, topDomain string) (*DNSUtils, error) {
 
-    d := new(DNSUtils)
-    d.Kind = DNS_Server
-    d.TopDomain = topDomain
+	d := new(DNSUtils)
+	d.Kind = DNS_Server
+	d.TopDomain = topDomain
 
-    var err error
-    d.LAddr, err = net.ResolveUDPAddr("udp", laddrstr)
-    if err != nil {
-        return nil, err
-    }
-    d.LDns = d.LAddr
+	var err error
+	d.LAddr, err = net.ResolveUDPAddr("udp", laddrstr)
+	if err != nil {
+		return nil, err
+	}
+	d.LDns = d.LAddr
 
-    /* Listen on UDP address laddr */
-    d.Conn, err = net.ListenUDP("udp", d.LAddr)
-    if err != nil {
-        return nil, err
-    }
-    return d, nil
+	/* Listen on UDP address laddr */
+	d.Conn, err = net.ListenUDP("udp", d.LAddr)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
-func (d *DNSUtils) NewDNSPacket(t TUNPacket) (*dns.Msg, error){
+func (d *DNSUtils) NewDNSPacket(t TUNPacket) (*dns.Msg, error) {
 
-    switch t.GetCmd(){
-    case TUN_CMD_CONNECT:
-        labels := []string{string(TUN_CMD_CONNECT), d.TopDomain}
-        domain := strings.Join(labels, ".")
+	switch t.GetCmd() {
+	case TUN_CMD_CONNECT:
+		labels := []string{string(TUN_CMD_CONNECT), d.TopDomain}
+		domain := strings.Join(labels, ".")
 
-        msg := new(dns.Msg)
-        msg.SetQuestion(domain, dns.TypeTXT)
-        msg.RecursionDesired = true
-        return msg, nil
+		msg := new(dns.Msg)
+		msg.SetQuestion(domain, dns.TypeTXT)
+		msg.RecursionDesired = true
+		return msg, nil
 
-    default:
-        return nil, fmt.Errorf("NewDNSPacket: Invalid TUN CMD\n")
-    }
+	default:
+		return nil, fmt.Errorf("NewDNSPacket: Invalid TUN CMD\n")
+	}
 }
 
-func (d *DNSUtils) Send(p []byte) error{
-    if d.Kind != DNS_Client {
-        return fmt.Errorf("Send: Only used by Client\n")
-    }
-    _, err :=  d.Conn.WriteToUDP(p, d.LDns)
-    return err
+func (d *DNSUtils) Send(p []byte) error {
+	if d.Kind != DNS_Client {
+		return fmt.Errorf("Send: Only used by Client\n")
+	}
+	_, err := d.Conn.WriteToUDP(p, d.LDns)
+	return err
 }
 
-func (d *DNSUtils) SendTo(addr *net.UDPAddr, p []byte) error{
+func (d *DNSUtils) SendTo(addr *net.UDPAddr, p []byte) error {
 
-    _, err := d.Conn.WriteToUDP(p, addr)
-    return err
+	_, err := d.Conn.WriteToUDP(p, addr)
+	return err
 }
 
-func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error{
+func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error {
 
-    //b := make([]byte, 1600)
-    reply := new(dns.Msg)
-    reply.SetReply(msg)
+	//b := make([]byte, 1600)
+	reply := new(dns.Msg)
+	reply.SetReply(msg)
 
-    switch tun.GetCmd(){
-    case TUN_CMD_ACK:
+	switch tun.GetCmd() {
+	case TUN_CMD_ACK:
 
-        // A
-        // TXT
+		// A
+		// TXT
 
-        domain := msg.Question[0].Name
-        txt, err := dns.NewRR(domain + " 0 IN TXT normaldnsreply")
+		domain := msg.Question[0].Name
+		txt, err := dns.NewRR(domain + " 0 IN TXT normaldnsreply")
 
-        reply.Answer = make([]dns.RR, 1)
-        reply.Answer[0] = txt
+		reply.Answer = make([]dns.RR, 1)
+		reply.Answer[0] = txt
 
-        b, err := reply.Pack()
-        if err != nil {
-            return err
-        }
-        _ = b
+		b, err := reply.Pack()
+		if err != nil {
+			return err
+		}
+		_ = b
 
-        //err = s.DNS.SendTo(paddr, b)
-        if err != nil{
-            return err
-        }
+		//err = s.DNS.SendTo(paddr, b)
+		if err != nil {
+			return err
+		}
 
-    case TUN_CMD_DATA:
-        // Encode 
+	case TUN_CMD_DATA:
+		// Encode
 
-        Error.Println("DNS Reply: Not Implemented")
-    case TUN_CMD_RESPONSE:
-        Error.Println("DNS Reply: Not Implemented")
+		Error.Println("DNS Reply: Not Implemented")
+	case TUN_CMD_RESPONSE:
+		Error.Println("DNS Reply: Not Implemented")
 
-    default:
-        return fmt.Errorf("DNS Reply: Invalid TUN Cmd")
-    }
-    return nil
+	default:
+		return fmt.Errorf("DNS Reply: Invalid TUN Cmd")
+	}
+	return nil
 }
 
-func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error){
+func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 
-    switch tun.GetCmd() {
-    case TUN_CMD_DATA:
+	switch tun.GetCmd() {
+	case TUN_CMD_DATA:
 
-        t, ok := tun.(*TUNIPPacket)
-        if !ok {
-            return nil, fmt.Errorf("Invail Conversion\n")
-        }
-        return d.InjectIPPacket(uint16(t.Id), t.Payload)
-    case TUN_CMD_CONNECT, TUN_CMD_KILL:
+		t, ok := tun.(*TUNIPPacket)
+		if !ok {
+			return nil, fmt.Errorf("Invail Conversion\n")
+		}
+		return d.InjectIPPacket(uint16(t.Id), t.Payload)
+	case TUN_CMD_CONNECT:
+		msg, err := d.NewDNSPacket(tun)
+		if err != nil {
+			Error.Println(err)
+			return nil, err
+		}
+		return []*dns.Msg{msg}, nil
 
-        // TODO
-        msg, err := d.NewDNSPacket(tun)
-        if err != nil {
-            Error.Println(err)
-            return nil, err
-        }
-        return []*dns.Msg{msg}, nil
+	case TUN_CMD_KILL:
 
-    case TUN_CMD_RESPONSE:
+		// TODO
+		Error.Println("Inject for CMD_KILL not implemented")
+		return nil, nil
 
-        Error.Println("Inject for RESPONSE Not Implemented")
-        // TODO
-    default:
-        return nil, fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
-    }
+	case TUN_CMD_RESPONSE:
 
-    return nil, fmt.Errorf("Not Implement\n")
+		Error.Println("Inject for RESPONSE Not Implemented")
+		// TODO
+	default:
+		return nil, fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
+	}
+
+	return nil, fmt.Errorf("Not Implement\n")
 }
 
 /* Given a DNS Packet, Retrieve TUNPacket from it */
-func (d *DNSUtils) Retrieve(dns *dns.Msg) (TUNPacket, error){
+func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 
-    /*
-    switch tun.GetCmd() {
-    case TUN_CMD_DATA:
-        return d.InjectIPPacket(tun.Id, tun.Payload)
-    case TUN_CMD_CREAT, TUN_CMD_KILL:
-        // TODO
-    case TUN_CMD_RESPONSE:
-        // TODO
-    default:
-        return fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
-    }*/
+	t := new(TUNCmdPacket)
 
-    t := new(TUNCmdPacket)
-    t.Cmd  = TUN_CMD_ACK
-    t.UserId = 0
+	if len(in.Answer) > 0 {
+		// dns packet sent from DNSServer
 
-    return t, nil
+	} else {
+		// dns packet sent from DNSClient
+        r := in.Question[0]
+		domains := strings.Split(r.Name, ".")
+		n := len(domains)
+		if n < 4 {
+			return nil, fmt.Errorf("unexpecetd domain name format %s\n", r.Name)
+		}
+		cmd := byte(domains[n-4][0])
+		if cmd != TUN_CMD_CONNECT && n < 5 {
+			return nil, fmt.Errorf("unexpecetd domain name format %s\n", r.Name)
+		}
+		t.Cmd = cmd
+		switch cmd {
+		case TUN_CMD_CONNECT:
+			t.UserId = -1 // has not been allocated by DNSServer
+		default:
+			var err error
+			t.UserId, err = strconv.Atoi(domains[n-5])
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse UserId from %s\n", domains[n-5])
+			}
+		}
+	}
 
-    return t, fmt.Errorf("Not Implement\n")
+	return t, nil
+
 }
 
 /* Pack a DNS Packet to byte array */
@@ -211,7 +228,7 @@ func (d *DNSUtils) Unpack(b []byte) (*dns.Msg, error){
 
 func (d *DNSUtils) injectToLabels(b []byte) ([]string, error) {
 
-    encodedStr := base32.StdEncoding.EncodeToString(b)
+	encodedStr := base32.StdEncoding.EncodeToString(b)
 
 	//decodedStr,_ := base32.StdEncoding.DecodeString(encodedStr)
 	//	fmt.Printf("encodedStr %s\n", encodedStr)
@@ -242,86 +259,86 @@ func (d *DNSUtils) injectToLabels(b []byte) ([]string, error) {
 	return labelsArr, nil
 }
 
-func (d *DNSUtils) InjectIPPacket(id uint16, b []byte) ([]*dns.Msg, error){
+func (d *DNSUtils) InjectIPPacket(id uint16, b []byte) ([]*dns.Msg, error) {
 
-    msgs := make([]*dns.Msg, 0)
+	msgs := make([]*dns.Msg, 0)
 
-    if d.Kind == DNS_Client {
-        // Client: Insert into DNS Query
+	if d.Kind == DNS_Client {
+		// Client: Insert into DNS Query
 
-        labels, err := d.injectToLabels(b)
-        if err != nil {
-            return nil, err
-        }
+		labels, err := d.injectToLabels(b)
+		if err != nil {
+			return nil, err
+		}
 
-        cmdStr  := TUN_CMD_DATA
-        idStr := strconv.FormatUint(uint64(id), 10)
+		cmdStr := TUN_CMD_DATA
+		idStr := strconv.FormatUint(uint64(id), 10)
 
-        for i := 0; i < len(labels)/4; i++ {
+		for i := 0; i < len(labels)/4; i++ {
 
-            currLabels := labels[i*4 : (i+1)*4]
-            encodedStr := strings.Join(currLabels, ".")
-            var mf string = "1"
-            if i == len(labels)/4-1 {
-                mf = "0"
-            }
+			currLabels := labels[i*4 : (i+1)*4]
+			encodedStr := strings.Join(currLabels, ".")
+			var mf string = "1"
+			if i == len(labels)/4-1 {
+				mf = "0"
+			}
 
-            idxStr := strconv.Itoa(i)
-            domainLabels := []string{encodedStr, idStr, mf, idxStr, string(cmdStr), d.TopDomain}
+			idxStr := strconv.Itoa(i)
+			domainLabels := []string{encodedStr, idStr, mf, idxStr, string(cmdStr), d.TopDomain}
 
-            domain := strings.Join(domainLabels, ".")
+			domain := strings.Join(domainLabels, ".")
 
-            if len(msgs) >= 253 {
-                return nil, fmt.Errorf("Packed Msg Size %d > 253\n", msgs)
-            }
+			if len(msgs) >= 253 {
+				return nil, fmt.Errorf("Packed Msg Size %d > 253\n", msgs)
+			}
 
-            currMsg := new(dns.Msg)
-            currMsg.SetQuestion(domain, dns.TypeA)
-            currMsg.RecursionDesired = true
+			currMsg := new(dns.Msg)
+			currMsg.SetQuestion(domain, dns.TypeA)
+			currMsg.RecursionDesired = true
 
-            //Debug.Println(currMsg.String())
-            msgs = append(msgs, currMsg)
-        }
-    }else{
-        // Server TODO: insert into TXT records
-    }
+			//Debug.Println(currMsg.String())
+			msgs = append(msgs, currMsg)
+		}
+	} else {
+		// Server TODO: insert into TXT records
+	}
 	return msgs, nil
 }
 
 /* inject ip packet */
 func (d *DNSUtils) InjectAndSendTo(b []byte, addr *net.UDPAddr) error {
 
-    ippkt := new(ip.IPPacket)
-    err := ippkt.Unmarshal(b)
-    if err != nil {
-        return err
-    }
+	ippkt := new(ip.IPPacket)
+	err := ippkt.Unmarshal(b)
+	if err != nil {
+		return err
+	}
 
-    id := ippkt.Header.Id
+	id := ippkt.Header.Id
 
-    t := new(TUNIPPacket)
-    t.Cmd = TUN_CMD_DATA
-    t.Id = int(id)
-    t.More = false
-    t.Offset = 0
-    t.Payload = b
+	t := new(TUNIPPacket)
+	t.Cmd = TUN_CMD_DATA
+	t.Id = int(id)
+	t.More = false
+	t.Offset = 0
+	t.Payload = b
 
-    msgs, err := d.Inject(t)
-    if err != nil {
-        return err
-    }
+	msgs, err := d.Inject(t)
+	if err != nil {
+		return err
+	}
 
-    for i:=0 ; i<len(msgs) ; i++{
+	for i := 0; i < len(msgs); i++ {
 
-        pkt, err := msgs[i].Pack()
-        if err != nil {
-            return err
-        }
+		pkt, err := msgs[i].Pack()
+		if err != nil {
+			return err
+		}
 
-        err = d.SendTo(addr, pkt)
-        if err != nil {
-            return err
-        }
-    }
-    return nil
+		err = d.SendTo(addr, pkt)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

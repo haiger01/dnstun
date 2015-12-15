@@ -1,66 +1,67 @@
 package tun
 
 import (
-    "net"
+	"net"
 )
 
 const (
-    TUN_CMD_CONNECT  byte = 'c'
-    TUN_CMD_RESPONSE byte = 'r'
-    TUN_CMD_DATA     byte = 'd'
-    TUN_CMD_KILL     byte = 'k'
-    TUN_CMD_EMPTY    byte = 'e' // empty packet, with user id,
-                                // just for server to have more dns id
-    TUN_CMD_ACK  byte = 'a' // no user id, a normal dns request
+	TUN_CMD_CONNECT  byte = 'c'
+	TUN_CMD_RESPONSE byte = 'r'
+	TUN_CMD_DATA     byte = 'd'
+	TUN_CMD_KILL     byte = 'k'
+	TUN_CMD_EMPTY    byte = 'e' // empty packet, with user id,
+	// just for server to have more dns id
+	TUN_CMD_ACK byte = 'a' // no user id, a normal dns request
 )
 
 type TUNPacket interface {
-    GetCmd()    byte
+	GetCmd() byte
 
-    /* The Physical UDP Address for an incoming packet 
-       may change over time, e.g. using different middle 
-       DNS Server. By using UserId field to identify the source
-       Of a TUN Packet */
-    GetUserId()   int
+	/* The Physical UDP Address for an incoming packet
+	   may change over time, e.g. using different middle
+	   DNS Server. By using UserId field to identify the source
+	   Of a TUN Packet */
+	GetUserId() int
 }
 
 type TUNCmdPacket struct {
-    Cmd byte
-    UserId int
+	Cmd    byte
+	UserId int
 }
 
 type TUNResponsePacket struct {
-    Cmd     byte
-    UserId    int
-    Server   *net.IPAddr
-    Client   *net.IPAddr
+	Cmd    byte
+	UserId int
+	Server *net.IPAddr
+	Client *net.IPAddr
 }
 
 type TUNIPPacket struct {
-    Cmd     byte
-    UserId    int
-    Id      int
-    Offset  int
-    More    bool
-    Payload []byte
+	Cmd     byte
+	UserId  int
+	Id      int
+	Offset  int
+	More    bool
+	Payload []byte
 }
-func (t *TUNCmdPacket) GetCmd() byte{
-    return t.Cmd
+
+func (t *TUNCmdPacket) GetCmd() byte {
+	return t.Cmd
 }
-func (t *TUNResponsePacket) GetCmd() byte{
-    return TUN_CMD_RESPONSE
+func (t *TUNResponsePacket) GetCmd() byte {
+	return TUN_CMD_RESPONSE
 }
-func (t *TUNIPPacket) GetCmd() byte{
-    return TUN_CMD_DATA
+func (t *TUNIPPacket) GetCmd() byte {
+	return TUN_CMD_DATA
 }
-func (t *TUNCmdPacket) GetUserId() int{
-    return t.UserId
+func (t *TUNCmdPacket) GetUserId() int {
+	return t.UserId
 }
-func (t *TUNResponsePacket) GetUserId() int{
-    return t.UserId
+func (t *TUNResponsePacket) GetUserId() int {
+	return t.UserId
 }
-func (t *TUNIPPacket) GetUserId() int{
-    return t.UserId
+func (t *TUNIPPacket) GetUserId() int {
+	return t.UserId
 }
 
 /*
@@ -95,4 +96,3 @@ func (t *TUNPacket) Unpack(domain string) (*TUNPacket, error){
 	return outPacket, nil
 }
 */
-
