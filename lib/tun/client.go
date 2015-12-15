@@ -41,6 +41,19 @@ func NewClient(topDomain, ldns, laddr, tunName string) (*Client, error) {
     return c, nil
 }
 
+
+func (c *Client) DNSSendFreeId(){
+
+    for c.Running {
+        time.Sleep(10*time.Millisecond)
+
+        t := &TUNCmdPacket{TUN_CMD_EMPTY, c.User}
+
+                
+
+    }
+}
+
 func (c *Client) Connect() error {
 
     // Create a TUN Packet
@@ -128,6 +141,7 @@ func (c *Client) DNSRecv(){
 
             c.Running = true
             go c.TUNRecv()
+            go c.DNSSendFreeId()
 
         case TUN_CMD_DATA:
 

@@ -10,7 +10,7 @@ import (
 type Conn struct {
 
     VAddr   *net.IPAddr
-    PAddr   *net.UDPAddr
+    PAddr   *net.UDPAddr // 
     User    int
 
     InChan   chan TUNPacket
@@ -90,6 +90,10 @@ func (c *Conn) Recv(tunPacket TUNPacket) error{
     return nil
 }
 
+func (s *Server) NormalReply(msg *dns.Msg, paddr *net.UDPAddr) error{
+
+}
+
 func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
 
     //b := make([]byte, 1600)
@@ -104,11 +108,18 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
     // And Send Back
         Error.Printf("Not Implemented, %s", tunPacket.GetUser())
 
+        c.DNS.Reply(msg, tunPacket, paddr)
+
     default:
     // TODO
     // there's no pending TUN Packet to be sent,
     // just reply the request
 
+        // normal reply 
+        t := &TUNCmdPacket{ TUN_CMD_NORMAL_DNS, c.User}
+        return c.DNS.Reply(msg, t, paddr)
+
+        /*
         domain := msg.Question[0].Name
         txt, err := dns.NewRR(domain + " 1 IN TXT abcdeabcde")
         reply.Answer = make([]dns.RR, 1)
@@ -124,9 +135,8 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
         if err != nil{
             Error.Println(err)
             return err
-        }
+        }*/
     }
-
     return nil
 }
 
@@ -195,7 +205,7 @@ func (s *Server) DNSRecv(){
         switch tunPacket.GetCmd() {
         case TUN_CMD_CONNECT:
 
-            rvaddr := s.AcquireVAddr()  //TODO
+            rvaddr := s.AcquireVAddr()  // TODO
             user := s.AcquireUser()     // TODO
 
             // create new connection for the client
@@ -203,11 +213,20 @@ func (s *Server) DNSRecv(){
             s.Routes_By_VAddr[rvaddr.String()] = conn
             s.Routes_By_User[user] = conn
 
-            t := new(TUNResponsePacket)
-            t.Cmd = TUN_CMD_RESPONSE
-            t.Server = s.VAddr    // server's virtual ip address
-            t.Client = rvaddr     // client's virtual ip address
+            // TODO: reply with response in TXT
 
+            t := &TUNResponsePacket{TUN_CMD_RESPONSE,
+                                    user,
+                                    s.VAddr,
+                                    rvaddr}
+
+            err := s.DNS.Reply(dnsPacket, t, rpaddr)
+            if err != nil{
+                Error.Println(err)
+                continue
+            }
+
+            /*
             msgs, err := s.DNS.Inject(t) // TODO
             if err != nil {
                 Error.Println(err)
@@ -224,10 +243,11 @@ func (s *Server) DNSRecv(){
             if err != nil {
                 Error.Println(err)
                 continue
-            }
+            }*/
 
             Debug.Printf("Connected with %s\n", conn.PAddr.String())
             continue
+
         case TUN_CMD_KILL:
 
             conn, err := s.FindConnByUser( tunPacket.GetUser() )
@@ -238,7 +258,17 @@ func (s *Server) DNSRecv(){
 
             delete(s.Routes_By_User, conn.User)
             delete(s.Routes_By_VAddr, conn.VAddr.String())
+            // option: remove user from user pool
+            // remove vaddr from vaddr pool
             Debug.Printf("Close Conn with %s\n", conn.VAddr.String())
+
+            // normal reply 
+            t := &TUNCmdPacket{TUN_CMD_NORMAL_DNS, conn.User}
+            err := s.DNS.Reply(dnsPacket, t, rpaddr)
+            if err != nil{
+                Error.Println(err)
+                continue
+            }
 
         case TUN_CMD_DATA:
 
@@ -254,42 +284,35 @@ func (s *Server) DNSRecv(){
                 continue
             }
 
-            err = conn.Reply(dnsPacket, rpaddr)
+            // normal reply this message
+            t := &TUNCmdPacket{TUN_CMD_NORMAL_DNS, conn.User}
+            err := s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
+                continue
             }
 
         case TUN_CMD_EMPTY:
+            // user.cmd.domain.com
+
             conn, err := s.FindConnByUser( tunPacket.GetUser() )
             if err != nil {
                 Error.Println(err)
                 continue
             }
+
+            // reply 
             err = conn.Reply(dnsPacket, rpaddr)
             if err != nil{
                 Error.Println(err)
             }
 
-        case TUN_CMD_NONE:
-            b := make([]byte, 1600)
+        case TUN_CMD_NORMAL_DNS:
+            // xxx.domain.com
 
-            msg := dnsPacket
-            reply := new(dns.Msg)
-            reply.SetReply(msg)
-
-            domain := msg.Question[0].Name
-            txt, err := dns.NewRR(domain + " 0 IN TXT abcdeabcde")
-
-            reply.Answer = make([]dns.RR, 1)
-            reply.Answer[0] = txt
-
-            b, err = reply.Pack()
-            if err != nil {
-                Error.Println(err)
-                continue
-            }
-
-            err = s.DNS.SendTo(rpaddr, b)
+            // normal reply
+            t := &TUNCmdPacket{TUN_CMD_NORMAL_DNS, conn.User}
+            err := s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
                 continue
@@ -331,13 +354,6 @@ func (s *Server) TUNRecv(){
             continue
         }
 
-        /*
-        conn, ok := s.Routes_By_VAddr[rvaddrStr]
-        if !ok {
-            Debug.Printf("Connection to vip %s not found\n", rvaddrStr)
-            continue
-        }*/
-
         tunPacket := new(TUNIPPacket)
         tunPacket.Cmd = TUN_CMD_DATA
         tunPacket.Id = int(ippkt.Header.Id)
@@ -356,14 +372,6 @@ func (s *Server) TUNRecv(){
 
         for i:=0; i<len(msgs); i++{
             conn.InChan <- msgs[i]
-            continue
-        }*/
-
-
-        /*
-        err = s.DNS.InjectAndSendTo(b[:n], conn.PAddr )
-        if err != nil {
-            Error.Println(err)
             continue
         }*/
     }

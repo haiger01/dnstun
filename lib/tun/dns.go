@@ -100,6 +100,46 @@ func (d *DNSUtils) SendTo(addr *net.UDPAddr, p []byte) error{
     return err
 }
 
+func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error{
+
+    b := make([]byte, 1600)
+    reply := new(dns.Msg)
+    reply.SetReply(msg)
+
+    switch tun.GetCmd(){
+    case TUN_CMD_NORMAL_DNS:
+
+        // A
+        // TXT
+
+        domain := msg.Question[0].Name
+        txt, err := dns.NewRR(domain + " 0 IN TXT normaldnsreply")
+
+        reply.Answer = make([]dns.RR, 1)
+        reply.Answer[0] = txt
+
+        b, err = reply.Pack()
+        if err != nil {
+            return err
+        }
+
+        err = s.DNS.SendTo(paddr, b)
+        if err != nil{
+            return err
+        }
+
+    case TUN_CMD_DATA:
+        // Encode 
+
+        Error.Println("DNS Reply: Not Implemented")
+    case TUN_CMD_RESPONSE:
+        Error.Println("DNS Reply: Not Implemented")
+
+    default:
+        return fmt.Println("DNS Reply: Invalid TUN Cmd")
+    }
+}
+
 func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error){
 
     switch tun.GetCmd() {
