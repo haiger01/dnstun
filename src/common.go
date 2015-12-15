@@ -11,6 +11,8 @@ var (
 )
 const (
     DEF_BUF_SIZE int = 1500
-    DEF_TOP_DOMAIN string = "b.jannotti.com"
+    DEF_TOP_DOMAIN string = "b.jannotti.com."
     DEF_DOMAIN_PORT string = ":53"
+    DEF_LOCAL_DNS string = "8.8.8.8:53"
+
 )

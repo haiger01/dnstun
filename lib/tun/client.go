@@ -50,8 +50,11 @@ func (c *Client) Connect() error {
     // Inject the TUN Packet to a DNS Packet
     msgs, err := c.DNS.Inject(tunPacket)
     if err != nil {
+        Error.Println(err)
         return err
     }
+
+    Debug.Println(msgs[0].String())
 
     // Listening on the port, wating for incoming DNS Packet
     go c.DNSRecv()
@@ -60,10 +63,12 @@ func (c *Client) Connect() error {
     for i:= 0; i<len(msgs); i++{
         packet, err := msgs[i].Pack()
         if err != nil {
+            Error.Println(err)
             return err
         }
         err = c.DNS.Send(packet)
         if err != nil {
+            Error.Println(err)
             return err
         }
     }
@@ -86,6 +91,9 @@ func (c *Client) DNSRecv(){
             Error.Println(err)
             continue
         }
+
+        Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
+
         tunPacket, err := c.DNS.Retrieve(dnsPacket) // TODO
         if err != nil {
             Error.Println(err)
@@ -133,7 +141,7 @@ func (c *Client) DNSRecv(){
                 c.TUN.Save(c.Buffer, t)
             }
         default:
-            Error.Println("Invalid TUN Cmd")
+            Debug.Println("Invalid TUN Cmd")
         }
     }
 }

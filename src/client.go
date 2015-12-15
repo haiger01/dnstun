@@ -32,7 +32,7 @@ func rpl(){
 func main(){
 
     topDomainPtr:= flag.String("d", DEF_TOP_DOMAIN, "Top Domain")
-    ldnsPtr     := flag.String("n", DEF_DOMAIN_PORT, "Address of Local DNS Server")
+    ldnsPtr     := flag.String("n", DEF_LOCAL_DNS, "Address of Local DNS Server")
     laddrPtr    := flag.String("l", ":4000", "Addrss of DNS Client")
     tunPtr      := flag.String("t", "tun66", "Name of TUN Interface")
 
