@@ -19,26 +19,26 @@ type TUNPacket interface {
 
     /* The Physical UDP Address for an incoming packet 
        may change over time, e.g. using different middle 
-       DNS Server. By using User field to identify the source
+       DNS Server. By using UserId field to identify the source
        Of a TUN Packet */
-    GetUser()   int
+    GetUserId()   int
 }
 
 type TUNCmdPacket struct {
     Cmd byte
-    User int
+    UserId int
 }
 
 type TUNResponsePacket struct {
     Cmd     byte
-    User    int
+    UserId    int
     Server   *net.IPAddr
     Client   *net.IPAddr
 }
 
 type TUNIPPacket struct {
     Cmd     byte
-    User    int
+    UserId    int
     Id      int
     Offset  int
     More    bool
@@ -53,14 +53,14 @@ func (t *TUNResponsePacket) GetCmd() byte{
 func (t *TUNIPPacket) GetCmd() byte{
     return TUN_CMD_DATA
 }
-func (t *TUNCmdPacket) GetUser() int{
-    return t.User
+func (t *TUNCmdPacket) GetUserId() int{
+    return t.UserId
 }
-func (t *TUNResponsePacket) GetUser() int{
-    return t.User
+func (t *TUNResponsePacket) GetUserId() int{
+    return t.UserId
 }
-func (t *TUNIPPacket) GetUser() int{
-    return t.User
+func (t *TUNIPPacket) GetUserId() int{
+    return t.UserId
 }
 
 /*

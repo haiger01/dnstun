@@ -190,7 +190,7 @@ func (d *DNSUtils) Retrieve(dns *dns.Msg) (TUNPacket, error){
 
     t := new(TUNCmdPacket)
     t.Cmd  = TUN_CMD_ACK
-    t.User = 0
+    t.UserId = 0
 
     return t, nil
 

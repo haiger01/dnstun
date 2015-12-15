@@ -11,7 +11,7 @@ type Conn struct {
 
     VAddr   *net.IPAddr
     PAddr   *net.UDPAddr // 
-    User    int
+    UserId    int
 
     InChan   chan TUNPacket
 
@@ -29,7 +29,7 @@ type Server struct {
     VAddr   *net.IPAddr
 
     Routes_By_VAddr  map[string]*Conn
-    Routes_By_User   map[int]*Conn
+    Routes_By_UserId   map[int]*Conn
 
     DNS     *DNSUtils
     TUN     *Tunnel
@@ -51,7 +51,7 @@ func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error){
     }
 
     s.Routes_By_VAddr = make(map[string]*Conn)
-    s.Routes_By_User = make(map[int]*Conn)
+    s.Routes_By_UserId = make(map[int]*Conn)
 
     s.DNS, err = NewDNSServer(laddr, topDomain)
     if err != nil {
@@ -109,7 +109,7 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
     // TODO
     // There're pending TUN Packets, Inject it into DNS Reply Packet
     // And Send Back
-        Error.Printf("Not Implemented, %s", tunPacket.GetUser())
+        Error.Printf("Not Implemented, %s", tunPacket.GetUserId())
 
         c.DNS.Reply(msg, tunPacket, paddr)
 
@@ -119,7 +119,7 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error{
     // just reply the request
 
         // normal reply 
-        t := &TUNCmdPacket{ TUN_CMD_ACK, c.User}
+        t := &TUNCmdPacket{ TUN_CMD_ACK, c.UserId}
         return c.DNS.Reply(msg, t, paddr)
 
         /*
@@ -155,7 +155,7 @@ func (s *Server) AcquireVAddr() *net.IPAddr{
     }
     return addr
 }
-func (s *Server) AcquireUser()  int{
+func (s *Server) AcquireUserId()  int{
 
     // TODO
 
@@ -172,11 +172,11 @@ func (s *Server) FindConnByVAddr(addr string) (*Conn, error){
     return conn, nil
 }
 
-func (s *Server) FindConnByUser(user int) (*Conn, error){
+func (s *Server) FindConnByUserId(user int) (*Conn, error){
 
-    conn, ok := s.Routes_By_User[user]
+    conn, ok := s.Routes_By_UserId[user]
     if !ok {
-        return nil, fmt.Errorf("Cannot find Connection for User %d\n",
+        return nil, fmt.Errorf("Cannot find Connection for UserId %d\n",
                     user)
     }
     return conn, nil
@@ -209,12 +209,12 @@ func (s *Server) DNSRecv(){
         case TUN_CMD_CONNECT:
 
             rvaddr := s.AcquireVAddr()  // TODO
-            user := s.AcquireUser()     // TODO
+            user := s.AcquireUserId()     // TODO
 
             // create new connection for the client
             conn := s.NewConn(rvaddr, user)
             s.Routes_By_VAddr[rvaddr.String()] = conn
-            s.Routes_By_User[user] = conn
+            s.Routes_By_UserId[user] = conn
 
             // TODO: reply with response in TXT
 
@@ -253,20 +253,20 @@ func (s *Server) DNSRecv(){
 
         case TUN_CMD_KILL:
 
-            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            conn, err := s.FindConnByUserId( tunPacket.GetUserId() )
             if err != nil {
                 Error.Println(err)
                 continue
             }
 
-            delete(s.Routes_By_User, conn.User)
+            delete(s.Routes_By_UserId, conn.UserId)
             delete(s.Routes_By_VAddr, conn.VAddr.String())
             // option: remove user from user pool
             // remove vaddr from vaddr pool
             Debug.Printf("Close Conn with %s\n", conn.VAddr.String())
 
             // normal reply 
-            t := &TUNCmdPacket{TUN_CMD_ACK, conn.User}
+            t := &TUNCmdPacket{TUN_CMD_ACK, conn.UserId}
             err = s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
@@ -275,7 +275,7 @@ func (s *Server) DNSRecv(){
 
         case TUN_CMD_DATA:
 
-            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            conn, err := s.FindConnByUserId( tunPacket.GetUserId() )
             if err != nil {
                 Error.Println(err)
                 continue
@@ -288,7 +288,7 @@ func (s *Server) DNSRecv(){
             }
 
             // normal reply this message
-            t := &TUNCmdPacket{TUN_CMD_ACK, conn.User}
+            t := &TUNCmdPacket{TUN_CMD_ACK, conn.UserId}
             err = s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
@@ -298,7 +298,7 @@ func (s *Server) DNSRecv(){
         case TUN_CMD_EMPTY:
             // user.cmd.domain.com
 
-            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            conn, err := s.FindConnByUserId( tunPacket.GetUserId() )
             if err != nil {
                 Error.Println(err)
                 continue
@@ -314,11 +314,11 @@ func (s *Server) DNSRecv(){
             // xxx.domain.com
 
             // normal reply
-            conn, err := s.FindConnByUser( tunPacket.GetUser() )
+            conn, err := s.FindConnByUserId( tunPacket.GetUserId() )
             if err != nil {
                 fmt.Println("cannot find conn by user")
             }
-            t := &TUNCmdPacket{TUN_CMD_ACK, conn.User}
+            t := &TUNCmdPacket{TUN_CMD_ACK, conn.UserId}
             err = s.DNS.Reply(dnsPacket, t, rpaddr)
             if err != nil{
                 Error.Println(err)
