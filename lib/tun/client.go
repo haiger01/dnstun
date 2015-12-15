@@ -4,6 +4,7 @@ import (
 	"../tonnerre/golang-dns"
 	"net"
 	"time"
+    "fmt"
 )
 
 type Client struct {
@@ -121,23 +122,11 @@ func (c *Client) DNSRecv() {
 				Error.Println("Fail to Convert TUN Packet\n")
 				continue
 			}
-
-			c.ServerVAddr = new(net.IPAddr)
-			c.ClientVAddr = new(net.IPAddr)
-			*c.ServerVAddr = *res.Server
-			*c.ClientVAddr = *res.Client
-
-			/*
-			   *(c.ServerVAddr)("ip", res.Server)
-			   if err != nil {
-			       Error.Println(err)
-			       continue
-			   }
-			   c.ClientVAddr, err = net.ResolveIPAddr("ip", res.Client)
-			   if err != nil {
-			       Error.Println(err)
-			       continue
-			   }*/
+            
+			c.ServerVAddr = res.Server
+			c.ClientVAddr = res.Client
+            fmt.Printf("connection established. server vip: %s, client vip: %s\n",
+                        c.ServerVAddr.String(), c.ClientVAddr.String())
 
 			c.Running = true
 			go c.TUNRecv()

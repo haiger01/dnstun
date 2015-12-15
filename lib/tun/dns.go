@@ -186,13 +186,47 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 /* Given a DNS Packet, Retrieve TUNPacket from it */
 func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 
-	t := new(TUNCmdPacket)
-
+    
 	if len(in.Answer) > 0 {
 		// dns packet sent from DNSServer
+        ans, ok := in.Answer[0].(*dns.TXT)
+        if !ok  {
+            return nil, fmt.Errorf("unexpected reply RR record, not TXT\n")
+        }
+        cmdDomains := strings.Split(ans.Txt[0],".")
+        cmd := byte(cmdDomains[0][0])
+        var err error
+        switch cmd {
+            case TUN_CMD_RESPONSE:
+                t := new(TUNResponsePacket)
+                t.Cmd = TUN_CMD_RESPONSE
+                t.UserId, err = strconv.Atoi(cmdDomains[1])
+                if err != nil {
+                    return nil, err
+                }
+                serverIpStr := strings.Replace(cmdDomains[2], "_", ".", -1)
+                clientIpStr := strings.Replace(cmdDomains[3], "_", ".", -1)
+                t.Server, err = net.ResolveIPAddr("ip",serverIpStr)
+                if err != nil {
+                    return nil, err
+                }
+                t.Client, err = net.ResolveIPAddr("ip", clientIpStr)
+                if err != nil {
+                    return nil, err
+                }
+                return t, nil
+
+            default:
+            return nil, fmt.Errorf("TUN_CMD %s from DNSServer not implemented \n", string(cmd))
+        }
+
+        return nil, fmt.Errorf("DNSUtils.Retrieve should not be here")
+
+
 
 	} else {
 		// dns packet sent from DNSClient
+        t := new(TUNCmdPacket)
         r := in.Question[0]
 		domains := strings.Split(r.Name, ".")
 		n := len(domains)
@@ -214,9 +248,9 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 				return nil, fmt.Errorf("cannot parse UserId from %s\n", domains[n-5])
 			}
 		}
+        return t, nil
 	}
 
-	return t, nil
 
 }
 
