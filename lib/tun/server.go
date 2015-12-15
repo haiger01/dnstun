@@ -193,10 +193,11 @@ func (s *Server) FindConnByUserId(user int) (*Conn, error) {
 }
 
 func (s *Server) DNSRecv() {
-
+    fmt.Println("in Server.DNSRecv()")
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
+        fmt.Println("recv DNS packet from addr", rpaddr.String())
 		if err != nil {
 			Error.Println(err)
 			continue
