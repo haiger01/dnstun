@@ -108,7 +108,7 @@ func (c *Client) DNSRecv() {
 
 		Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
 
-		tunPacket, err := c.DNS.Retrieve(dnsPacket) // TODO
+		tunPacket, err := c.DNS.Retrieve(dnsPacket) 
 		if err != nil {
 			Error.Println(err)
 			continue

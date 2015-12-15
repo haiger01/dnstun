@@ -137,6 +137,8 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	default:
 		return fmt.Errorf("DNS Reply: Invalid TUN Cmd")
 	}
+    fmt.Printf("dns response to send: \n")
+    fmt.Println(reply.String())
     binary, err := reply.Pack()
     if err != nil{
         return err
