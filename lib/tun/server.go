@@ -7,7 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
-    "time"
+	"time"
 )
 
 type Conn struct {
@@ -99,7 +99,7 @@ func (s *Server) nextUserInfo() error {
 func (s *Server) NewConn(vaddr *net.IPAddr, user int) *Conn {
 	c := new(Conn)
 	c.VAddr = vaddr
-	//c.PAddr = paddr
+	c.UserId = user
 
 	c.InChan = make(chan TUNPacket, 200)
 
@@ -194,7 +194,7 @@ func (s *Server) FindConnByUserId(user int) (*Conn, error) {
 }
 
 func (s *Server) DNSRecv() {
-    time.Sleep(500 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
@@ -382,12 +382,12 @@ func (s *Server) TUNRecv() {
 }
 
 func (s *Server) Info() {
-    fmt.Printf("server vip: %s, number of connections: %d\n", s.VAddr.String(), len(s.Routes_By_VAddr))
-    for _,v := range s.Routes_By_VAddr {
-        v.Info()
-    }
+	fmt.Printf("server vip: %s, number of connections: %d\n", s.VAddr.String(), len(s.Routes_By_VAddr))
+	for _, v := range s.Routes_By_VAddr {
+		v.Info()
+	}
 }
 
 func (c *Conn) Info() {
-    fmt.Printf("\tvip:%s, userId:%d\n", c.VAddr.String(), c.UserId)
+	fmt.Printf("\tvip:%s, userId:%d\n", c.VAddr.String(), c.UserId)
 }

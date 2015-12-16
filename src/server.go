@@ -2,18 +2,18 @@ package main
 
 import (
 	"../lib/tun"
+	"bufio"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
-    "bufio"
-    "os"
 )
 
 func rpl(s *tun.Server) {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		fmt.Printf("server > ")
+		fmt.Printf("server> ")
 		cmd := strings.Split(scanner.Text(), " ")
 		switch cmd[0] {
 		case "ping":

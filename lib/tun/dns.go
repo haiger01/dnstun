@@ -102,12 +102,13 @@ func (d *DNSUtils) SendTo(addr *net.UDPAddr, p []byte) error {
 
 func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error {
 
-	//b := make([]byte, 1600)
-	reply := new(dns.Msg)
-	reply.SetReply(msg)
+	var msgs []*dns.Msg
 
 	switch tun.GetCmd() {
 	case TUN_CMD_RESPONSE:
+		reply := new(dns.Msg)
+		reply.SetReply(msg)
+
 		reply.Answer = make([]dns.RR, 1)
 		domain := msg.Question[0].Name
 		ans, err := dns.NewRR(domain + " 0 IN TXT xx")
@@ -125,6 +126,7 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 		replyStr := strings.Join(replyDomains, ".")
 		ans.(*dns.TXT).Txt[0] = replyStr
 		reply.Answer[0] = ans
+		msgs = append(msgs, reply)
 	case TUN_CMD_ACK:
 
 		return fmt.Errorf("DNS Reply ACK not implemented")
@@ -137,19 +139,24 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 		return fmt.Errorf("DNS Reply: Invalid TUN Cmd")
 	}
 	fmt.Printf("dns response to send: \n")
-	fmt.Println(reply.String())
-	binary, err := reply.Pack()
-	if err != nil {
-		return err
-	}
-	err = d.SendTo(paddr, binary)
-	if err != nil {
-		return err
+	for _, msg := range msgs {
+
+		fmt.Println(msg.String())
+		binary, err := msg.Pack()
+		if err != nil {
+			return err
+		}
+		err = d.SendTo(paddr, binary)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
+
+	msgs := make([]*dns.Msg, 0)
 
 	switch tun.GetCmd() {
 	case TUN_CMD_DATA:
@@ -165,7 +172,8 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 			Error.Println(err)
 			return nil, err
 		}
-		return []*dns.Msg{msg}, nil
+		msgs = append(msgs, msg)
+		return msgs, nil
 
 	case TUN_CMD_KILL:
 
@@ -174,9 +182,12 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 		return nil, nil
 
 	case TUN_CMD_RESPONSE:
-
-		Error.Println("Inject for RESPONSE Not Implemented")
-		// TODO
+		fmt.Println("implemented in dns.Reply() function")
+		/*
+		   t, ok := tun.(*TUNResponsePacket)
+		   reply := new(dns.Msg)
+		   reply.SetReply(
+		*/
 	default:
 		return nil, fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
 	}

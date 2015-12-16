@@ -18,7 +18,7 @@ func rpl(c *tun.Client) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		//fmt.Println(scanner.Text()) // Println will add back the final '\n'
-		fmt.Printf("client > ")
+		fmt.Printf("client> ")
 		cmd := strings.Split(scanner.Text(), " ")
 		switch cmd[0] {
 		case "ping":

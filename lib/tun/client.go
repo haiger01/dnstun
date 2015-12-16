@@ -49,9 +49,27 @@ func (c *Client) DNSSendFreeId() {
 	for c.Running {
 		time.Sleep(1000 * time.Millisecond)
 
-		t := &TUNCmdPacket{TUN_CMD_EMPTY, c.UserId}
-		_ = t
-
+		t := new(TUNCmdPacket)
+		t.Cmd = TUN_CMD_EMPTY
+		t.UserId = c.UserId
+		msgs, err := c.DNS.Inject(t)
+		if err != nil {
+			Error.Println(err)
+			continue
+		}
+		for i := 0; i < len(msgs); i++ {
+			binary, err := msgs[i].Pack()
+			if err != nil {
+				Error.Println(err)
+				continue
+			}
+			err = c.DNS.Send(binary)
+			fmt.Println("send empty dns packet to server")
+			if err != nil {
+				Error.Println(err)
+				continue
+			}
+		}
 	}
 }
 
@@ -127,7 +145,7 @@ func (c *Client) DNSRecv() {
 				Error.Println("Fail to Convert TUN Packet\n")
 				continue
 			}
-            c.UserId = res.UserId
+			c.UserId = res.UserId
 			c.ServerVAddr = res.Server
 			c.ClientVAddr = res.Client
 			fmt.Printf("connection established. server vip: %s, client vip: %s\n",
