@@ -278,6 +278,7 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 			t := new(TUNCmdPacket)
 			t.Cmd = cmd
 			t.UserId = -1 // has not been allocated by DNSServer
+            return t, nil
 		case TUN_CMD_DATA:
 			t := new(TUNIpPacket)
 			t.Cmd = cmd
