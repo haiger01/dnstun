@@ -160,6 +160,10 @@ func (c *Client) DNSRecv() {
 					Error.Println("Fail to Convert TUN Packet\n")
 					continue
 				}
+                if t.Id == DEF_SENDSTRING_ID {
+                    fmt.Printf("recv %s\n", string(t.Payload))
+                    continue
+                }
 				c.TUN.Save(c.Buffer, t)
 			}
 		case TUN_CMD_ACK:
