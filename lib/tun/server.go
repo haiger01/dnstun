@@ -193,11 +193,11 @@ func (s *Server) FindConnByUserId(user int) (*Conn, error) {
 }
 
 func (s *Server) DNSRecv() {
-    fmt.Println("in Server.DNSRecv()")
+	fmt.Println("in Server.DNSRecv()")
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
-        fmt.Println("recv DNS packet from addr", rpaddr.String())
+		fmt.Println("recv DNS packet from addr", rpaddr.String())
 		if err != nil {
 			Error.Println(err)
 			continue
@@ -210,8 +210,8 @@ func (s *Server) DNSRecv() {
 			continue
 		}
 
-        fmt.Println("incoming dnsPacket")
-        fmt.Println(dnsPacket.String())
+		fmt.Println("incoming dnsPacket")
+		fmt.Println(dnsPacket.String())
 		tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
 		if err != nil {
 			Error.Println(err)
@@ -222,10 +222,10 @@ func (s *Server) DNSRecv() {
 		case TUN_CMD_CONNECT:
 
 			// create new connection for the client
-            rvaddr, userId := s.nextUserVAddr, s.nextUserId
+			rvaddr, userId := s.nextUserVAddr, s.nextUserId
 			conn := s.NewConn(rvaddr, userId)
-            s.Routes_By_VAddr[rvaddr.String()] = conn
-            s.Routes_By_UserId[userId] = conn
+			s.Routes_By_VAddr[rvaddr.String()] = conn
+			s.Routes_By_UserId[userId] = conn
 			err = s.nextUserInfo()
 			if err != nil {
 				Error.Println(err)
@@ -244,7 +244,6 @@ func (s *Server) DNSRecv() {
 				Error.Println(err)
 				continue
 			}
-
 
 			Debug.Printf("Connected with %s\n", conn.PAddr.String())
 
@@ -379,4 +378,15 @@ func (s *Server) TUNRecv() {
 		       continue
 		   }*/
 	}
+}
+
+func (s *Server) Info() {
+    fmt.Printf("server vip: %s, number of connections: %d\n", s.VAddr.String(), len(s.Routes_By_VAddr))
+    for _,v := range s.Routes_By_VAddr {
+        v.Info()
+    }
+}
+
+func (c *Conn) Info() {
+    fmt.Printf("\tvip:%s, userId:%d\n", c.VAddr.String(), c.UserId)
 }

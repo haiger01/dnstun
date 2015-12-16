@@ -2,9 +2,9 @@ package tun
 
 import (
 	"../tonnerre/golang-dns"
+	"fmt"
 	"net"
 	"time"
-    "fmt"
 )
 
 type Client struct {
@@ -68,7 +68,7 @@ func (c *Client) Connect() error {
 		return err
 	}
 
-	Debug.Println(msgs[0].String())
+	//Debug.Println(msgs[0].String())
 
 	// Listening on the port, wating for incoming DNS Packet
 	go c.DNSRecv()
@@ -105,13 +105,15 @@ func (c *Client) DNSRecv() {
 			Error.Println(err)
 			continue
 		}
-        
-        if dns.RcodeToString[dnsPacket.MsgHdr.Rcode] == "SERVFAIL" {
-            fmt.Printf("need serfail handling\n")
-        }
+
+		if dns.RcodeToString[dnsPacket.MsgHdr.Rcode] == "SERVFAIL" {
+			fmt.Printf("need serfail handling\n")
+			Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
+			continue
+		}
 		Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
 
-		tunPacket, err := c.DNS.Retrieve(dnsPacket) 
+		tunPacket, err := c.DNS.Retrieve(dnsPacket)
 		if err != nil {
 			Error.Println(err)
 			continue
@@ -125,11 +127,11 @@ func (c *Client) DNSRecv() {
 				Error.Println("Fail to Convert TUN Packet\n")
 				continue
 			}
-            
+
 			c.ServerVAddr = res.Server
 			c.ClientVAddr = res.Client
-            fmt.Printf("connection established. server vip: %s, client vip: %s\n",
-                        c.ServerVAddr.String(), c.ClientVAddr.String())
+			fmt.Printf("connection established. server vip: %s, client vip: %s\n",
+				c.ServerVAddr.String(), c.ClientVAddr.String())
 
 			c.Running = true
 			go c.TUNRecv()
@@ -169,4 +171,10 @@ func (c *Client) TUNRecv() {
 			continue
 		}
 	}
+}
+
+func (c *Client) Info() {
+	fmt.Printf("client id: %d, server vip:%s, client vip:%s\n", c.UserId, c.ServerVAddr.String(),
+		c.ClientVAddr.String())
+	fmt.Printf("running: %t\n", c.Running)
 }
