@@ -233,21 +233,30 @@ func (s *Server) DNSRecv() {
 				continue
 			}
 
-			// TODO: reply with response in TXT
 
 			t := &TUNResponsePacket{TUN_CMD_RESPONSE,
 				userId,
 				s.VAddr,
-				rvaddr}
-
+				rvaddr,
+                dnsPacket}
 			err := s.DNS.Reply(dnsPacket, t, rpaddr)
 			if err != nil {
 				Error.Println(err)
 				continue
 			}
-
 			Debug.Printf("Connected with %s\n", conn.PAddr.String())
 
+        case  TUN_CMD_EMPTY:
+            t := &TUNAckPacket{
+                Cmd:    tunPacket.GetCmd(),
+                UserId: tunPacket.GetUserId(),
+                Request: dnsPacket,
+            }
+            err := s.DNS.Reply(dnsPacket, t, rpaddr)
+            if err != nil {
+                Error.Println(err)
+                continue
+            }
 		case TUN_CMD_KILL:
 
 			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
@@ -285,36 +294,6 @@ func (s *Server) DNSRecv() {
 			}
 
 			// normal reply this message
-			t := &TUNCmdPacket{TUN_CMD_ACK, conn.UserId}
-			err = s.DNS.Reply(dnsPacket, t, rpaddr)
-			if err != nil {
-				Error.Println(err)
-				continue
-			}
-
-		case TUN_CMD_EMPTY:
-			// user.cmd.domain.com
-
-			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
-			if err != nil {
-				Error.Println(err)
-				continue
-			}
-
-			// reply
-			err = conn.Reply(dnsPacket, rpaddr)
-			if err != nil {
-				Error.Println(err)
-			}
-
-		case TUN_CMD_ACK:
-			// xxx.domain.com
-
-			// normal reply
-			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
-			if err != nil {
-				fmt.Println("cannot find conn by user")
-			}
 			t := &TUNCmdPacket{TUN_CMD_ACK, conn.UserId}
 			err = s.DNS.Reply(dnsPacket, t, rpaddr)
 			if err != nil {
