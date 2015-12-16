@@ -103,19 +103,19 @@ func (d *DNSUtils) SendTo(addr *net.UDPAddr, p []byte) error {
 func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error {
 
 	var msgs []*dns.Msg
-    var err error
+	var err error
 	switch tun.GetCmd() {
 	case TUN_CMD_RESPONSE:
-        msgs, err = d.Inject(tun)
-        if err != nil {
-            Error.Println(err)
-            return err
-        }
+		msgs, err = d.Inject(tun)
+		if err != nil {
+			Error.Println(err)
+			return err
+		}
 	case TUN_CMD_ACK:
-        msgs, err = d.Inject(tun)
-        if err != nil {
-            return err
-        }
+		msgs, err = d.Inject(tun)
+		if err != nil {
+			return err
+		}
 	case TUN_CMD_DATA:
 		// Encode
 
@@ -140,7 +140,6 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	return nil
 }
 
-
 // This function works better for Client's purpose, as Server need Client's DNS request Msg to call SetReply
 func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 
@@ -163,58 +162,58 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 		msgs = append(msgs, msg)
 		return msgs, nil
 
-    case TUN_CMD_EMPTY:
-        msg := new(dns.Msg)
-        labels := []string{string(tun.(*TUNCmdPacket).UserId), string(TUN_CMD_EMPTY), d.TopDomain}
-        domain := strings.Join(labels, ".")
-        msg.SetQuestion(domain, dns.TypeTXT)
-        msg.RecursionDesired = true
-        msgs = append(msgs, msg)
-        return msgs, nil
+	case TUN_CMD_EMPTY:
+		msg := new(dns.Msg)
+		labels := []string{string(tun.(*TUNCmdPacket).UserId), string(TUN_CMD_EMPTY), d.TopDomain}
+		domain := strings.Join(labels, ".")
+		msg.SetQuestion(domain, dns.TypeTXT)
+		msg.RecursionDesired = true
+		msgs = append(msgs, msg)
+		return msgs, nil
 
 	case TUN_CMD_KILL:
 		Error.Println("Inject for CMD_KILL not implemented")
 		return nil, nil
 
 	case TUN_CMD_RESPONSE, TUN_CMD_ACK:
-        var replyStr string
-        var ans dns.RR
-        var err error
-        reply := new(dns.Msg)
-        reply.Answer = make([]dns.RR, 1)
-        ans.(*dns.TXT).Txt = make([]string, 3)
-        if tun.GetCmd() == TUN_CMD_RESPONSE {
-            tunPkt, ok := tun.(*TUNResponsePacket)
-            if !ok {
-                return nil, fmt.Errorf("error casting to TUNResponsePacket\n")
-            }
-            domain := tunPkt.Request.Question[0].Name
-            ans, err = dns.NewRR(domain + " 0 IN TXT xx")
-            if err != nil {
-                return nil, err
-            }
-            reply.SetReply(tunPkt.Request)
-            serverIpStr := strings.Replace(tunPkt.Server.String(), ".", "_", -1)
-            clientIpStr := strings.Replace(tunPkt.Client.String(), ".", "_", -1)
-            replyDomains := []string{string(TUN_CMD_RESPONSE), strconv.Itoa(tunPkt.UserId), serverIpStr, clientIpStr}
-            replyStr = strings.Join(replyDomains, ".")
-        }  else {
-            tunPkt, ok := tun.(*TUNAckPacket)
-            if !ok {
-                return nil, fmt.Errorf("error casting to TUNAckPacket\n")
-            }
-            domain := tunPkt.Request.Question[0].Name
-            ans, err = dns.NewRR(domain + " 0 IN TXT xx")
-            if err != nil {
-                return nil, err
-            }
-            reply.SetReply(tunPkt.Request)
-            replyStr = string(TUN_CMD_ACK)
-        }
-        ans.(*dns.TXT).Txt[0] = replyStr
-        reply.Answer[0] = ans
-        msgs = append(msgs, reply)
-        return msgs, nil
+		var replyStr string
+		var ans dns.RR
+		var err error
+		reply := new(dns.Msg)
+		reply.Answer = make([]dns.RR, 1)
+		ans.(*dns.TXT).Txt = make([]string, 3)
+		if tun.GetCmd() == TUN_CMD_RESPONSE {
+			tunPkt, ok := tun.(*TUNResponsePacket)
+			if !ok {
+				return nil, fmt.Errorf("error casting to TUNResponsePacket\n")
+			}
+			domain := tunPkt.Request.Question[0].Name
+			ans, err = dns.NewRR(domain + " 0 IN TXT xx")
+			if err != nil {
+				return nil, err
+			}
+			reply.SetReply(tunPkt.Request)
+			serverIpStr := strings.Replace(tunPkt.Server.String(), ".", "_", -1)
+			clientIpStr := strings.Replace(tunPkt.Client.String(), ".", "_", -1)
+			replyDomains := []string{string(TUN_CMD_RESPONSE), strconv.Itoa(tunPkt.UserId), serverIpStr, clientIpStr}
+			replyStr = strings.Join(replyDomains, ".")
+		} else {
+			tunPkt, ok := tun.(*TUNAckPacket)
+			if !ok {
+				return nil, fmt.Errorf("error casting to TUNAckPacket\n")
+			}
+			domain := tunPkt.Request.Question[0].Name
+			ans, err = dns.NewRR(domain + " 0 IN TXT xx")
+			if err != nil {
+				return nil, err
+			}
+			reply.SetReply(tunPkt.Request)
+			replyStr = string(TUN_CMD_ACK)
+		}
+		ans.(*dns.TXT).Txt[0] = replyStr
+		reply.Answer[0] = ans
+		msgs = append(msgs, reply)
+		return msgs, nil
 	default:
 		return nil, fmt.Errorf("Invalid TUN CMD %s", tun.GetCmd())
 	}

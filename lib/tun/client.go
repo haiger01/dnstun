@@ -139,22 +139,22 @@ func (c *Client) DNSRecv() {
 
 		switch tunPacket.GetCmd() {
 		case TUN_CMD_RESPONSE:
-            if c.Running == false {
-			res, ok := tunPacket.(*TUNResponsePacket)
-			if !ok {
-				Error.Println("Fail to Convert TUN Packet\n")
-				continue
-			}
-			c.UserId = res.UserId
-			c.ServerVAddr = res.Server
-			c.ClientVAddr = res.Client
-			fmt.Printf("connection established. server vip: %s, client vip: %s\n",
-				c.ServerVAddr.String(), c.ClientVAddr.String())
+			if c.Running == false {
+				res, ok := tunPacket.(*TUNResponsePacket)
+				if !ok {
+					Error.Println("Fail to Convert TUN Packet\n")
+					continue
+				}
+				c.UserId = res.UserId
+				c.ServerVAddr = res.Server
+				c.ClientVAddr = res.Client
+				fmt.Printf("connection established. server vip: %s, client vip: %s\n",
+					c.ServerVAddr.String(), c.ClientVAddr.String())
 
-			c.Running = true
-			go c.TUNRecv()
-			go c.DNSSendFreeId()
-            }
+				c.Running = true
+				go c.TUNRecv()
+				go c.DNSSendFreeId()
+			}
 
 		case TUN_CMD_DATA:
 
@@ -167,10 +167,10 @@ func (c *Client) DNSRecv() {
 				}
 				c.TUN.Save(c.Buffer, t)
 			}
-        case TUN_CMD_ACK:
-            if c.Running {
-                fmt.Println("ACK from DNSServer")
-            }
+		case TUN_CMD_ACK:
+			if c.Running {
+				fmt.Println("ACK from DNSServer")
+			}
 		default:
 			Debug.Println("Invalid TUN Cmd")
 		}

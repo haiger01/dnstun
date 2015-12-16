@@ -233,12 +233,11 @@ func (s *Server) DNSRecv() {
 				continue
 			}
 
-
 			t := &TUNResponsePacket{TUN_CMD_RESPONSE,
 				userId,
 				s.VAddr,
 				rvaddr,
-                dnsPacket}
+				dnsPacket}
 			err := s.DNS.Reply(dnsPacket, t, rpaddr)
 			if err != nil {
 				Error.Println(err)
@@ -246,17 +245,17 @@ func (s *Server) DNSRecv() {
 			}
 			Debug.Printf("Connected with %s\n", conn.PAddr.String())
 
-        case  TUN_CMD_EMPTY:
-            t := &TUNAckPacket{
-                Cmd:    tunPacket.GetCmd(),
-                UserId: tunPacket.GetUserId(),
-                Request: dnsPacket,
-            }
-            err := s.DNS.Reply(dnsPacket, t, rpaddr)
-            if err != nil {
-                Error.Println(err)
-                continue
-            }
+		case TUN_CMD_EMPTY:
+			t := &TUNAckPacket{
+				Cmd:     tunPacket.GetCmd(),
+				UserId:  tunPacket.GetUserId(),
+				Request: dnsPacket,
+			}
+			err := s.DNS.Reply(dnsPacket, t, rpaddr)
+			if err != nil {
+				Error.Println(err)
+				continue
+			}
 		case TUN_CMD_KILL:
 
 			conn, err := s.FindConnByUserId(tunPacket.GetUserId())

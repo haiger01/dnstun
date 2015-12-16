@@ -1,8 +1,8 @@
 package tun
 
 import (
+	"../tonnerre/golang-dns"
 	"net"
-    "../tonnerre/golang-dns"
 )
 
 const (
@@ -31,17 +31,17 @@ type TUNCmdPacket struct {
 }
 
 type TUNResponsePacket struct {
-	Cmd    byte
-	UserId int
-	Server *net.IPAddr
-	Client *net.IPAddr
-    Request *dns.Msg
+	Cmd     byte
+	UserId  int
+	Server  *net.IPAddr
+	Client  *net.IPAddr
+	Request *dns.Msg
 }
 
 type TUNAckPacket struct {
-    Cmd byte
-    UserId int
-    Request *dns.Msg
+	Cmd     byte
+	UserId  int
+	Request *dns.Msg
 }
 
 type TUNIPPacket struct {
@@ -61,7 +61,7 @@ func (t *TUNResponsePacket) GetCmd() byte {
 }
 
 func (t *TUNAckPacket) GetCmd() byte {
-    return TUN_CMD_ACK
+	return TUN_CMD_ACK
 }
 
 func (t *TUNIPPacket) GetCmd() byte {
@@ -75,7 +75,7 @@ func (t *TUNResponsePacket) GetUserId() int {
 }
 
 func (t *TUNAckPacket) GetUserId() int {
-    return t.UserId
+	return t.UserId
 }
 
 func (t *TUNIPPacket) GetUserId() int {
