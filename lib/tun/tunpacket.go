@@ -69,15 +69,15 @@ func (t *TUNResponsePacket) GetCmd() byte {
 }
 
 func (t *TUNAckPacket) GetCmd() byte {
-	return TUN_CMD_ACK
+	return t.Cmd
 }
 
 func (t *TUNEmptyPacket) GetCmd() byte {
-    return TUN_CMD_EMPTY
+    return t.Cmd
 }
 
 func (t *TUNIpPacket) GetCmd() byte {
-	return TUN_CMD_DATA
+    return t.Cmd
 }
 
 

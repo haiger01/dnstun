@@ -102,7 +102,6 @@ func (d *DNSUtils) SendTo(addr *net.UDPAddr, p []byte) error {
 }
 
 func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error {
-
 	var msgs []*dns.Msg
 	var err error
 	switch tun.GetCmd() {
@@ -131,6 +130,7 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 		}
     // downstreaming
     case TUN_CMD_EMPTY:
+        fmt.Println("tunPkt downstraming TUN_CMD_EMPTY")
         msgs, err = d.Inject(tun, msg)
         if err != nil {
             return err
@@ -165,6 +165,7 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
             if !ok {
                 return nil, fmt.Errorf("cannot cast to TUNIpPacket")
             }
+            fmt.Println("DNS.Inject tunPkt downstreaming here")
             return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
 		} else {
             // upstream
@@ -394,10 +395,10 @@ func (d *DNSUtils) injectToLabels(b []byte, base int) ([]string, error) {
 	for i := 0; i < numLabels; i++ {
 		labelsArr = append(labelsArr, encodedStr[i*LABEL_SIZE:(i+1)*LABEL_SIZE])
 	}
-	// padding the last partially filled label
+	// last label
 	if len(encodedStr)%LABEL_SIZE != 0 {
 		lastLabel := encodedStr[numLabels*LABEL_SIZE:]
-		lastLabel += strings.Repeat("_", (LABEL_SIZE - len(lastLabel)))
+	//	lastLabel += strings.Repeat("_", (LABEL_SIZE - len(lastLabel)))
 		labelsArr = append(labelsArr, lastLabel)
 	}
 
@@ -406,10 +407,10 @@ func (d *DNSUtils) injectToLabels(b []byte, base int) ([]string, error) {
 		if len(labelsArr)%labelsPerDns == 0 {
 			break
 		}
-		labelsArr = append(labelsArr, strings.Repeat("_", LABEL_SIZE))
+        labelsArr = append(labelsArr, "_")
+		//labelsArr = append(labelsArr, strings.Repeat("_", LABEL_SIZE))
 	}
 
-	//fmt.Printf("numLabels: %d, numDnsMsg: %d\n", numLabels, len(labelsArr)/4)
 	return labelsArr, nil
 }
 
@@ -425,14 +426,13 @@ func (d *DNSUtils) InjectIPPacket(userId int, ipId int, b []byte, request *dns.M
         cmd = TUN_CMD_DATA
     } else {
         // downstream
-        base = DEF_DOWNSTREAM_LABELS_PER_DNS
+        base = DEF_DOWNSTREAM_ENCODING_BASE
         labelsPerDns = DEF_DOWNSTREAM_LABELS_PER_DNS
         labelSize = DEF_DOWNSTREAM_LABEL_SIZE
         cmd = TUN_CMD_EMPTY
     }
     ipIdStr := strconv.Itoa(ipId)
     userIdStr := strconv.Itoa(userId)
-
     labels, err := d.injectToLabels(b, base)
     if err != nil {
         return nil, err
@@ -470,7 +470,7 @@ func (d *DNSUtils) InjectIPPacket(userId int, ipId int, b []byte, request *dns.M
             ans.(*dns.TXT).Txt[1] = secondTxt
             ans.(*dns.TXT).Txt[2] = thirdTxt
             currMsg.Answer[0] = ans
-            //Debug.Println(currMsg.String())
+            Debug.Println(currMsg.String())
         }
         msgs = append(msgs, currMsg)
     }

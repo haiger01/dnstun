@@ -126,18 +126,14 @@ func (s *Server) NormalReply(msg *dns.Msg, paddr *net.UDPAddr) error {
 
 func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error {
 
-	//b := make([]byte, 1600)
-
-	reply := new(dns.Msg)
-	reply.SetReply(msg)
 
 	select {
 	case tunPacket := <-c.InChan:
 		// TODO
 		// There're pending TUN Packets, Inject it into DNS Reply Packet
 		// And Send Back
-        fmt.Println("tunPkt coming from channel")
-	    return c.DNS.Reply(msg, tunPacket, paddr)
+	    err := c.DNS.Reply(msg, tunPacket, paddr)
+        return err
 
 	default:
 		// TODO
@@ -146,7 +142,7 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error {
 
 		// normal reply
         t := &TUNAckPacket{
-                Cmd:     TUN_CMD_EMPTY,
+                Cmd:     TUN_CMD_ACK,
                 UserId:  c.UserId,
                 Request: msg,
         }
@@ -314,6 +310,7 @@ func (s *Server) TUNRecv() {
 		tunPacket.More = false
 		tunPacket.Payload = b[:n]
 
+            fmt.Println("before return TUNRecv")
 		conn.InChan <- tunPacket
 
 		/*
@@ -331,11 +328,10 @@ func (s *Server) TUNRecv() {
 }
 
 func (s *Server) SendString(c *Conn, str string) {
-	fmt.Println("Server.SendString not implemented")
     tunPkt := new(TUNIpPacket)
-    tunPkt.Cmd = TUN_CMD_EMPTY
     tunPkt.UserId = c.UserId
     tunPkt.Id = DEF_SENDSTRING_ID
+    tunPkt.Cmd = TUN_CMD_EMPTY
     tunPkt.Payload = []byte(str)
     c.InChan <- tunPkt
 
