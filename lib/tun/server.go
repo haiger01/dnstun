@@ -198,7 +198,7 @@ func (s *Server) FindConnByUserId(user int) (*Conn, error) {
 }
 
 func (s *Server) DNSRecv() {
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond) // wait s.nextUserId ready
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
@@ -226,6 +226,7 @@ func (s *Server) DNSRecv() {
 
 			// create new connection for the client
 			rvaddr, userId := s.nextUserVAddr, s.nextUserId
+           fmt.Printf("assign connection with UserId %d\n", userId) 
 			conn := s.NewConn(rvaddr, userId)
 			s.Routes_By_VAddr[rvaddr.String()] = conn
 			s.Routes_By_UserId[userId] = conn
@@ -281,6 +282,7 @@ func (s *Server) DNSRecv() {
 			}
 
 		case TUN_CMD_DATA:
+           
 			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
 			if err != nil {
 				Error.Println(err)

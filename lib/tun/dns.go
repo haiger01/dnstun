@@ -150,7 +150,7 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 		if !ok {
 			return nil, fmt.Errorf("Invail Conversion\n")
 		}
-		return d.InjectIPPacket(t.Id, t.Payload)
+		return d.InjectIPPacket(t.UserId, t.Id, t.Payload)
 	case TUN_CMD_CONNECT:
 		msg, err := d.NewDNSPacket(tun)
 		if err != nil {
@@ -282,7 +282,7 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 		case TUN_CMD_DATA:
 			t := new(TUNIpPacket)
 			t.Cmd = cmd
-			ipId, err := strconv.Atoi(domains[n-7])
+			ipId, err := strconv.Atoi(domains[n-8])
 			if err != nil {
 				return nil, fmt.Errorf("error casting ipId")
 			}
@@ -356,8 +356,7 @@ func (d *DNSUtils) injectToLabels(b []byte, base int) ([]string, error) {
 	return labelsArr, nil
 }
 
-func (d *DNSUtils) InjectIPPacket(id int, b []byte) ([]*dns.Msg, error) {
-
+func (d *DNSUtils) InjectIPPacket(userId int, ipId int, b []byte) ([]*dns.Msg, error) {
 	msgs := make([]*dns.Msg, 0)
 
 	if d.Kind == DNS_Client {
@@ -369,7 +368,8 @@ func (d *DNSUtils) InjectIPPacket(id int, b []byte) ([]*dns.Msg, error) {
 		}
 
 		cmdStr := TUN_CMD_DATA
-		idStr := strconv.Itoa(id)
+		ipIdStr := strconv.Itoa(ipId)
+        userIdStr := strconv.Itoa(userId)
 
 		for i := 0; i < len(labels)/4; i++ {
 
@@ -381,7 +381,7 @@ func (d *DNSUtils) InjectIPPacket(id int, b []byte) ([]*dns.Msg, error) {
 			}
 
 			idxStr := strconv.Itoa(i)
-			domainLabels := []string{encodedStr, idStr, mf, idxStr, string(cmdStr), d.TopDomain}
+			domainLabels := []string{encodedStr, ipIdStr, mf, idxStr, userIdStr, string(cmdStr), d.TopDomain}
 
 			domain := strings.Join(domainLabels, ".")
 

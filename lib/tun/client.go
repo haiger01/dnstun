@@ -238,6 +238,7 @@ func (c *Client) SendString(str string) {
 	if c.Running {
 		tunPkt := new(TUNIpPacket)
 		tunPkt.Cmd = TUN_CMD_DATA
+        tunPkt.UserId = c.UserId
 		tunPkt.Id = DEF_SENDSTRING_ID
 		tunPkt.Payload = []byte(str)
 		msgs, err := c.DNS.Inject(tunPkt)
