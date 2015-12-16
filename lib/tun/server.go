@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+    "time"
 )
 
 type Conn struct {
@@ -193,7 +194,7 @@ func (s *Server) FindConnByUserId(user int) (*Conn, error) {
 }
 
 func (s *Server) DNSRecv() {
-	fmt.Println("in Server.DNSRecv()")
+    time.Sleep(500 * time.Millisecond)
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)

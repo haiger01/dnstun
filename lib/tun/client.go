@@ -127,7 +127,7 @@ func (c *Client) DNSRecv() {
 				Error.Println("Fail to Convert TUN Packet\n")
 				continue
 			}
-
+            c.UserId = res.UserId
 			c.ServerVAddr = res.Server
 			c.ClientVAddr = res.Client
 			fmt.Printf("connection established. server vip: %s, client vip: %s\n",
@@ -174,7 +174,7 @@ func (c *Client) TUNRecv() {
 }
 
 func (c *Client) Info() {
-	fmt.Printf("client id: %d, server vip:%s, client vip:%s\n", c.UserId, c.ServerVAddr.String(),
+	fmt.Printf("client userId: %d, server vip:%s, client vip:%s\n", c.UserId, c.ServerVAddr.String(),
 		c.ClientVAddr.String())
 	fmt.Printf("running: %t\n", c.Running)
 }
