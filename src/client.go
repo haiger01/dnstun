@@ -25,12 +25,12 @@ func rpl(c *tun.Client) {
 			testPing()
 		case "info":
 			c.Info()
-        case "send":
-            if len(cmd) == 1 {
-                fmt.Println("Usage: send abcde")
-                continue
-            }
-            c.SendString(strings.Join(cmd[1:], " "))
+		case "send":
+			if len(cmd) == 1 {
+				fmt.Println("Usage: send abcde")
+				continue
+			}
+			c.SendString(strings.Join(cmd[1:], " "))
 		case "kill":
 			fmt.Printf("kill not implemented\n")
 		case "quit", "exit":

@@ -35,7 +35,7 @@ func (t *Tunnel) Write(p []byte) error {
 	return nil
 }
 
-func (t *Tunnel) Save(buffer map[int][]byte, tun *TUNIPPacket) error {
+func (t *Tunnel) Save(buffer map[int][]byte, tun *TUNIpPacket) error {
 
 	if tun.Offset == 0 && tun.More == false {
 		pkt := tun.Payload

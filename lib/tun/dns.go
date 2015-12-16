@@ -4,6 +4,7 @@ import (
 	"../ip"
 	"../tonnerre/golang-dns"
 	"encoding/base32"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"strconv"
@@ -138,7 +139,6 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	return nil
 }
 
-// This function works better for Client's purpose, as Server need Client's DNS request Msg to call SetReply
 func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 
 	msgs := make([]*dns.Msg, 0)
@@ -146,11 +146,11 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 	switch tun.GetCmd() {
 	case TUN_CMD_DATA:
 
-		t, ok := tun.(*TUNIPPacket)
+		t, ok := tun.(*TUNIpPacket)
 		if !ok {
 			return nil, fmt.Errorf("Invail Conversion\n")
 		}
-		return d.InjectIPPacket(uint16(t.Id), t.Payload)
+		return d.InjectIPPacket(t.Id, t.Payload)
 	case TUN_CMD_CONNECT:
 		msg, err := d.NewDNSPacket(tun)
 		if err != nil {
@@ -186,7 +186,7 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 			}
 			domain := tunPkt.Request.Question[0].Name
 			ans, err = dns.NewRR(domain + " 0 IN TXT xx")
-            ans.(*dns.TXT).Txt = make([]string, 3)
+			ans.(*dns.TXT).Txt = make([]string, 3)
 			if err != nil {
 				return nil, err
 			}
@@ -202,7 +202,7 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 			}
 			domain := tunPkt.Request.Question[0].Name
 			ans, err = dns.NewRR(domain + " 0 IN TXT xx")
-            ans.(*dns.TXT).Txt = make([]string, 3)
+			ans.(*dns.TXT).Txt = make([]string, 3)
 			if err != nil {
 				return nil, err
 			}
@@ -251,10 +251,10 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 				return nil, err
 			}
 			return t, nil
-        case TUN_CMD_ACK:
-            t := new(TUNCmdPacket)
-            t.Cmd = TUN_CMD_ACK
-            return t, nil
+		case TUN_CMD_ACK:
+			t := new(TUNCmdPacket)
+			t.Cmd = TUN_CMD_ACK
+			return t, nil
 		default:
 			return nil, fmt.Errorf("TUN_CMD %s from DNSServer not implemented \n", string(cmd))
 		}
@@ -263,7 +263,6 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 
 	} else {
 		// dns packet sent from DNSClient
-		t := new(TUNCmdPacket)
 		r := in.Question[0]
 		domains := strings.Split(r.Name[:len(r.Name)-1], ".") // trim the last '.'from "b.jannotti.com."[-1]
 		n := len(domains)
@@ -274,42 +273,63 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 		if cmd != TUN_CMD_CONNECT && n < 5 {
 			return nil, fmt.Errorf("unexpecetd domain name format %s\n", r.Name)
 		}
-		t.Cmd = cmd
 		switch cmd {
 		case TUN_CMD_CONNECT:
+			t := new(TUNCmdPacket)
+			t.Cmd = cmd
 			t.UserId = -1 // has not been allocated by DNSServer
+		case TUN_CMD_DATA:
+			t := new(TUNIpPacket)
+			t.Cmd = cmd
+			ipId, err := strconv.Atoi(domains[n-8])
+			if err != nil {
+				return nil, fmt.Errorf("error casting ipId")
+			}
+			t.Id = ipId
+			if ipId == DEF_SENDSTRING_ID {
+				encodedStr := strings.Replace(strings.Join(domains[:4], ""), "_", "", -1)
+				raw, err := base32.StdEncoding.DecodeString(encodedStr)
+				if err != nil {
+					return nil, fmt.Errorf("error decode SendString's string")
+				}
+				fmt.Printf("recv: %s\n", string(raw))
+			} else {
+
+				fmt.Println("normal IP packet decoding has not implemented")
+			}
+			return t, nil
 		default:
 			var err error
+			t := new(TUNCmdPacket)
+			t.Cmd = cmd
 			t.UserId, err = strconv.Atoi(domains[n-5])
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse UserId from %s\n", domains[n-5])
 			}
+			return t, nil
 		}
-		return t, nil
+		fmt.Println("retrieve should not be here")
+		return nil, nil
 	}
 
 }
 
-/* Pack a DNS Packet to byte array */
-/*
-func (d *DNSUtils) Pack(*dns.Msg) ([]byte, error){
+func (d *DNSUtils) injectToLabels(b []byte, base int) ([]string, error) {
+	var LABEL_SIZE int
+	var encodedStr string
+	var labelsPerDns int
+	if base == 32 {
+		LABEL_SIZE = DEF_UPSTREAM_LABEL_SIZE
+		encodedStr = base32.StdEncoding.EncodeToString(b)
+		labelsPerDns = DEF_UPSTREAM_LABELS_PER_DNS
+	} else if base == 64 {
+		LABEL_SIZE = DEF_DOWNSTREAM_LABEL_SIZE
+		encodedStr = base64.StdEncoding.EncodeToString(b)
+		labelsPerDns = DEF_DOWNSTREAM_LABELS_PER_DNS
+	} else {
+		return nil, fmt.Errorf("unsupported encoding base")
+	}
 
-}*/
-
-/* Given a byte array, Retrieve DNS Packet from it */
-/*
-func (d *DNSUtils) Unpack(b []byte) (*dns.Msg, error){
-
-}*/
-
-func (d *DNSUtils) injectToLabels(b []byte) ([]string, error) {
-
-	encodedStr := base32.StdEncoding.EncodeToString(b)
-
-	//decodedStr,_ := base32.StdEncoding.DecodeString(encodedStr)
-	//	fmt.Printf("encodedStr %s\n", encodedStr)
-	//	fmt.Printf("decodedStr %s\n", decodedStr)
-	//	fmt.Printf("originStr  %s\n", string(raw))
 	numLabels := len(encodedStr) / LABEL_SIZE
 	labelsArr := make([]string, 0)
 
@@ -325,7 +345,7 @@ func (d *DNSUtils) injectToLabels(b []byte) ([]string, error) {
 
 	// padding 1-3 empty labels to labelsArr so that len(labelsArr) % 4 == 0
 	for {
-		if len(labelsArr)%4 == 0 {
+		if len(labelsArr)%labelsPerDns == 0 {
 			break
 		}
 		labelsArr = append(labelsArr, strings.Repeat("_", LABEL_SIZE))
@@ -335,20 +355,20 @@ func (d *DNSUtils) injectToLabels(b []byte) ([]string, error) {
 	return labelsArr, nil
 }
 
-func (d *DNSUtils) InjectIPPacket(id uint16, b []byte) ([]*dns.Msg, error) {
+func (d *DNSUtils) InjectIPPacket(id int, b []byte) ([]*dns.Msg, error) {
 
 	msgs := make([]*dns.Msg, 0)
 
 	if d.Kind == DNS_Client {
 		// Client: Insert into DNS Query
 
-		labels, err := d.injectToLabels(b)
+		labels, err := d.injectToLabels(b, 32)
 		if err != nil {
 			return nil, err
 		}
 
 		cmdStr := TUN_CMD_DATA
-		idStr := strconv.FormatUint(uint64(id), 10)
+		idStr := strconv.Itoa(id)
 
 		for i := 0; i < len(labels)/4; i++ {
 
@@ -364,8 +384,8 @@ func (d *DNSUtils) InjectIPPacket(id uint16, b []byte) ([]*dns.Msg, error) {
 
 			domain := strings.Join(domainLabels, ".")
 
-			if len(msgs) >= 253 {
-				return nil, fmt.Errorf("Packed Msg Size %d > 253\n", msgs)
+			if len(domain) > 253 {
+				return nil, fmt.Errorf("Domain name %d > 253\n", len(domain))
 			}
 
 			currMsg := new(dns.Msg)
@@ -392,7 +412,7 @@ func (d *DNSUtils) InjectAndSendTo(b []byte, addr *net.UDPAddr) error {
 
 	id := ippkt.Header.Id
 
-	t := new(TUNIPPacket)
+	t := new(TUNIpPacket)
 	t.Cmd = TUN_CMD_DATA
 	t.Id = int(id)
 	t.More = false

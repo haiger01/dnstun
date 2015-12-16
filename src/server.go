@@ -6,8 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
-    "strconv"
 )
 
 func rpl(s *tun.Server) {
@@ -21,20 +21,20 @@ func rpl(s *tun.Server) {
 			fmt.Println("server ping client not implemented")
 		case "info":
 			s.Info()
-        case "send":
-            if len(cmd) == 1 {
-                fmt.Println("Usage: send userId abcdeabcde")
-                continue
-            }
-            userId, err := strconv.Atoi(cmd[1])
-            if err != nil {
-                fmt.Println(err)
-            }
-            if v, ok := s.Routes_By_UserId[userId]; ok {
-                s.SendString(v, strings.Join(cmd[2:], " "))
-            } else {
-                fmt.Printf("client %d does not exist", userId)
-            }
+		case "send":
+			if len(cmd) == 1 {
+				fmt.Println("Usage: send userId abcdeabcde")
+				continue
+			}
+			userId, err := strconv.Atoi(cmd[1])
+			if err != nil {
+				fmt.Println(err)
+			}
+			if v, ok := s.Routes_By_UserId[userId]; ok {
+				s.SendString(v, strings.Join(cmd[2:], " "))
+			} else {
+				fmt.Printf("client %d does not exist", userId)
+			}
 		case "quit", "exit":
 			fmt.Println("Goodbye!")
 			return

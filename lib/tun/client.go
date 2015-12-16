@@ -57,18 +57,9 @@ func (c *Client) DNSSendFreeId() {
 			Error.Println(err)
 			continue
 		}
-		for i := 0; i < len(msgs); i++ {
-			binary, err := msgs[i].Pack()
-			if err != nil {
-				Error.Println(err)
-				continue
-			}
-			err = c.DNS.Send(binary)
-//			fmt.Println("send empty dns packet to server")
-			if err != nil {
-				Error.Println(err)
-				continue
-			}
+		err = c.sendDNSMessages(msgs)
+		if err != nil {
+			Error.Println(err)
 		}
 	}
 }
@@ -138,7 +129,7 @@ func (c *Client) DNSRecv() {
 
 		switch tunPacket.GetCmd() {
 		case TUN_CMD_RESPONSE:
-            Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
+			Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
 			if c.Running == false {
 				res, ok := tunPacket.(*TUNResponsePacket)
 				if !ok {
@@ -160,7 +151,7 @@ func (c *Client) DNSRecv() {
 
 			if c.Running == true {
 
-				t, ok := tunPacket.(*TUNIPPacket)
+				t, ok := tunPacket.(*TUNIpPacket)
 				if !ok {
 					Error.Println("Fail to Convert TUN Packet\n")
 					continue
@@ -196,12 +187,71 @@ func (c *Client) TUNRecv() {
 	}
 }
 
+/*
+// encode binary data into base32-encoded string (client->server)
+func (c *Client) encodeBase32(raw []byte) string {
+	return base32.StdEncoding.EncodeToString(raw)
+}
+
+// decode base64-encoded string to binary data (server->client)
+func (c *Client) decodeBase64(encoded string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(encoded)
+}
+
+
+// base32-encoded string -> base32-encoded []string
+func (c *Client) buildLabels(str string) []string {
+	labelsArr := make([]string, 0)
+	numLabels := len(str) / DEF_UPSTREAM_LABEL_SIZE
+	for i := 0; i < numLabels; i++ {
+		labelsArr = append(labelsArr, str[i*DEF_UPSTREAM_LABEL_SIZE:(i+1)*DEF_UPSTREAM_LABEL_SIZE])
+	}
+	// padding the last partially filled label
+	if len(str)%DEF_UPSTREAM_LABEL_SIZE != 0 {
+		lastLabel := str[numLabels*DEF_UPSTREAM_LABEL_SIZE:]
+		lastLabel += strings.Repeat("_", (DEF_UPSTREAM_LABEL_SIZE - len(lastLabel)))
+		labelsArr = append(labelsArr, lastLabel)
+	}
+	// padding 1-3 empty labels to labelsArr so that len(labelsArr)%4 == 0
+	for len(labelsArr)%4 != 0 {
+		labelsArr = append(labelsArr, strings.Repeat("_", DEF_UPSTREAM_LABEL_SIZE))
+	}
+	return labelsArr
+}
+*/
+
+func (c *Client) sendDNSMessages(msgs []*dns.Msg) error {
+	for _, msg := range msgs {
+		binary, err := msg.Pack()
+		if err != nil {
+			return err
+		}
+		err = c.DNS.Send(binary)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *Client) SendString(str string) {
-    if c.Running {
-        fmt.Println("Client.SendString() not implemented")
-    } else {
-        fmt.Println("no connection")
-    }
+	if c.Running {
+		tunPkt := new(TUNIpPacket)
+		tunPkt.Cmd = TUN_CMD_DATA
+		tunPkt.Id = DEF_SENDSTRING_ID
+		tunPkt.Payload = []byte(str)
+		msgs, err := c.DNS.Inject(tunPkt)
+		if err != nil {
+			fmt.Errorf("err")
+			return
+		}
+		err = c.sendDNSMessages(msgs)
+		if err != nil {
+			Error.Println(err)
+		}
+	} else {
+		fmt.Println("no connection")
+	}
 }
 
 func (c *Client) Info() {

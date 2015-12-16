@@ -44,7 +44,7 @@ type TUNAckPacket struct {
 	Request *dns.Msg
 }
 
-type TUNIPPacket struct {
+type TUNIpPacket struct {
 	Cmd     byte
 	UserId  int
 	Id      int
@@ -64,7 +64,7 @@ func (t *TUNAckPacket) GetCmd() byte {
 	return TUN_CMD_ACK
 }
 
-func (t *TUNIPPacket) GetCmd() byte {
+func (t *TUNIpPacket) GetCmd() byte {
 	return TUN_CMD_DATA
 }
 func (t *TUNCmdPacket) GetUserId() int {
@@ -78,7 +78,7 @@ func (t *TUNAckPacket) GetUserId() int {
 	return t.UserId
 }
 
-func (t *TUNIPPacket) GetUserId() int {
+func (t *TUNIpPacket) GetUserId() int {
 	return t.UserId
 }
 
@@ -100,7 +100,7 @@ func (t *TUNPacket) Unpack(domain string) (*TUNPacket, error){
 	_mf, _ := strconv.Atoi(labels[5])
 	_idx, _ := strconv.Atoi(labels[6])
 	_cmd, _ := strconv.Atoi(labels[7])
-	outPacket := &TUNIPPacket{
+	outPacket := &TUNIpPacket{
 		Cmd: _cmd,
 		Id:  _id,
 		Idx: _idx,

@@ -111,10 +111,14 @@ func (s *Server) NewConn(vaddr *net.IPAddr, user int) *Conn {
 
 func (c *Conn) Recv(tunPacket TUNPacket) error {
 
-	// cast packet to TUNIPPacket TODO: test if it works
-	t, ok := tunPacket.(*TUNIPPacket)
+	// cast packet to TUNIpPacket TODO: test if it works
+	t, ok := tunPacket.(*TUNIpPacket)
 	if !ok {
-		return fmt.Errorf("Unexpected cast fail from TUNPacket to TUNIPPacket\n")
+		return fmt.Errorf("Unexpected cast fail from TUNPacket to TUNIpPacket\n")
+	}
+	if t.Id < 0 {
+		// special IpPacket: SendString
+		return nil
 	}
 	err := c.TUN.Save(c.Buffer, t)
 	if err != nil {
@@ -194,7 +198,7 @@ func (s *Server) FindConnByUserId(user int) (*Conn, error) {
 }
 
 func (s *Server) DNSRecv() {
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
@@ -210,7 +214,7 @@ func (s *Server) DNSRecv() {
 			continue
 		}
 
-        //Debug.Printf("Recv DNS packet:\n%s\n------", dnsPacket.String())
+		//Debug.Printf("Recv DNS packet:\n%s\n------", dnsPacket.String())
 		tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
 		if err != nil {
 			Error.Println(err)
@@ -277,7 +281,6 @@ func (s *Server) DNSRecv() {
 			}
 
 		case TUN_CMD_DATA:
-
 			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
 			if err != nil {
 				Error.Println(err)
@@ -334,7 +337,7 @@ func (s *Server) TUNRecv() {
 			continue
 		}
 
-		tunPacket := new(TUNIPPacket)
+		tunPacket := new(TUNIpPacket)
 		tunPacket.Cmd = TUN_CMD_DATA
 		tunPacket.Id = int(ippkt.Header.Id)
 		tunPacket.Offset = 0
@@ -358,7 +361,7 @@ func (s *Server) TUNRecv() {
 }
 
 func (s *Server) SendString(c *Conn, str string) {
-    fmt.Println("Server.SendString not implemented")
+	fmt.Println("Server.SendString not implemented")
 }
 
 func (s *Server) Info() {
