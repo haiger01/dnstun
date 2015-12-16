@@ -293,8 +293,7 @@ func (s *Server) DNSRecv() {
 			}
 
 			// normal reply this message
-			t := &TUNCmdPacket{TUN_CMD_ACK, conn.UserId}
-			err = s.DNS.Reply(dnsPacket, t, rpaddr)
+			err = s.DNS.Reply(dnsPacket, tunPacket, rpaddr)
 			if err != nil {
 				Error.Println(err)
 				continue
