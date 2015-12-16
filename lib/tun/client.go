@@ -196,6 +196,14 @@ func (c *Client) TUNRecv() {
 	}
 }
 
+func (c *Client) SendString(str string) {
+    if c.Running {
+        fmt.Println("Client.SendString() not implemented")
+    } else {
+        fmt.Println("no connection")
+    }
+}
+
 func (c *Client) Info() {
 	fmt.Printf("client userId: %d, server vip:%s, client vip:%s\n", c.UserId, c.ServerVAddr.String(),
 		c.ClientVAddr.String())

@@ -357,6 +357,10 @@ func (s *Server) TUNRecv() {
 	}
 }
 
+func (s *Server) SendString(c *Conn, str string) {
+    fmt.Println("Server.SendString not implemented")
+}
+
 func (s *Server) Info() {
 	fmt.Printf("server vip: %s, number of connections: %d\n", s.VAddr.String(), len(s.Routes_By_VAddr))
 	for _, v := range s.Routes_By_VAddr {
