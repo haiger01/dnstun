@@ -113,7 +113,17 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 			return err
 		}
 	case TUN_CMD_DATA:
-		msgs, err = d.Inject(tun)
+        // not appropriate to use inject(tun) here
+        // just ack
+        fmt.Printf("reply CMD_DATA comes here")
+        t := new(TUNAckPacket)
+        t.Cmd = TUN_CMD_ACK
+        t.UserId = tun.GetUserId()
+        t.Request = msg
+		msgs, err = d.Inject(t)
+        fmt.Printf("reply CMD_DATA len(msgs):%d\n", len(msgs))
+        fmt.Printf("msg to reply\n")
+        fmt.Println(msgs[0].String())
 		if err != nil {
 			return err
 		}

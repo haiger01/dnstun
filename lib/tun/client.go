@@ -116,8 +116,12 @@ func (c *Client) DNSRecv() {
 		}
 
 		if dns.RcodeToString[dnsPacket.MsgHdr.Rcode] == "SERVFAIL" {
-			fmt.Printf("ignore servfail handling\n")
+			fmt.Printf("ignore servfail\n")
+            if len(dnsPacket.Question[0].Name) < 150 {
 			Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
+            } else {
+                fmt.Printf("reason: question's name too long to respond in UDP\n")
+            }
 			continue
 		}
 

@@ -41,11 +41,6 @@ type Server struct {
 func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error) {
 
 	s := new(Server)
-	/*
-	   s.LAddr, err := net.ResolveUDPAddr("udp", laddr)
-	   if err != nil {
-	       return nil, err
-	   }*/
 
 	var err error
 	s.VAddr, err = net.ResolveIPAddr("ip", vaddr)
@@ -58,7 +53,6 @@ func NewServer(topDomain, laddr, vaddr, tunName string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("nextUserVAddr: %s, nextUserId:%d\n", s.nextUserVAddr.String(), s.nextUserId)
 
 	s.Routes_By_VAddr = make(map[string]*Conn)
 	s.Routes_By_UserId = make(map[int]*Conn)
@@ -224,7 +218,6 @@ func (s *Server) DNSRecv() {
 
 			// create new connection for the client
 			rvaddr, userId := s.nextUserVAddr, s.nextUserId
-           fmt.Printf("assign connection with UserId %d\n", userId) 
 			conn := s.NewConn(rvaddr, userId)
 			s.Routes_By_VAddr[rvaddr.String()] = conn
 			s.Routes_By_UserId[userId] = conn
