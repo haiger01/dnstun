@@ -287,7 +287,6 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 			return t, nil
         case TUN_CMD_DATA:
         // downstream data transmission
-            fmt.Printf("DNs.Retrive case TUN_CMD_DATA\n")
             userId, err := strconv.Atoi(cmdDomains[1])
             if err != nil {
                 return nil, err
@@ -476,7 +475,7 @@ func (d *DNSUtils) InjectIPPacket(userId int, ipId int, b []byte, request *dns.M
             ans.(*dns.TXT).Txt[1] = secondTxt
             ans.(*dns.TXT).Txt[2] = thirdTxt
             currMsg.Answer[0] = ans
-            Debug.Println(currMsg.String())
+            //Debug.Println(currMsg.String())
         }
         msgs = append(msgs, currMsg)
     }
