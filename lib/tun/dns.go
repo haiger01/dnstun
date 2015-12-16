@@ -164,7 +164,7 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 
 	case TUN_CMD_EMPTY:
 		msg := new(dns.Msg)
-		labels := []string{string(tun.(*TUNCmdPacket).UserId), string(TUN_CMD_EMPTY), d.TopDomain}
+		labels := []string{strconv.Itoa(tun.(*TUNCmdPacket).UserId), string(TUN_CMD_EMPTY), d.TopDomain}
 		domain := strings.Join(labels, ".")
 		msg.SetQuestion(domain, dns.TypeTXT)
 		msg.RecursionDesired = true
@@ -181,7 +181,6 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 		var err error
 		reply := new(dns.Msg)
 		reply.Answer = make([]dns.RR, 1)
-		ans.(*dns.TXT).Txt = make([]string, 3)
 		if tun.GetCmd() == TUN_CMD_RESPONSE {
 			tunPkt, ok := tun.(*TUNResponsePacket)
 			if !ok {
@@ -189,6 +188,7 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 			}
 			domain := tunPkt.Request.Question[0].Name
 			ans, err = dns.NewRR(domain + " 0 IN TXT xx")
+            ans.(*dns.TXT).Txt = make([]string, 3)
 			if err != nil {
 				return nil, err
 			}
@@ -204,6 +204,7 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 			}
 			domain := tunPkt.Request.Question[0].Name
 			ans, err = dns.NewRR(domain + " 0 IN TXT xx")
+            ans.(*dns.TXT).Txt = make([]string, 3)
 			if err != nil {
 				return nil, err
 			}
