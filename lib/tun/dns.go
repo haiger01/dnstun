@@ -187,7 +187,6 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
             return nil, fmt.Errorf("Invaild Conversion\n")
         }
         return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
-    }
 	case TUN_CMD_CONNECT:
 		msg, err := d.NewDNSPacket(tun)
 		if err != nil {
