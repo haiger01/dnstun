@@ -198,7 +198,6 @@ func (s *Server) DNSRecv() {
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
-		fmt.Println("recv DNS packet from addr", rpaddr.String())
 		if err != nil {
 			Error.Println(err)
 			continue
@@ -211,8 +210,7 @@ func (s *Server) DNSRecv() {
 			continue
 		}
 
-		fmt.Println("incoming dnsPacket")
-		fmt.Println(dnsPacket.String())
+        //Debug.Printf("Recv DNS packet:\n%s\n------", dnsPacket.String())
 		tunPacket, err := s.DNS.Retrieve(dnsPacket) // TODO
 		if err != nil {
 			Error.Println(err)

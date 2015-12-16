@@ -129,7 +129,6 @@ func (c *Client) DNSRecv() {
 			Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
 			continue
 		}
-		Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
 
 		tunPacket, err := c.DNS.Retrieve(dnsPacket)
 		if err != nil {
@@ -139,6 +138,7 @@ func (c *Client) DNSRecv() {
 
 		switch tunPacket.GetCmd() {
 		case TUN_CMD_RESPONSE:
+            Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
 			if c.Running == false {
 				res, ok := tunPacket.(*TUNResponsePacket)
 				if !ok {
