@@ -64,7 +64,7 @@ func (c *Client) DNSSendFreeId() {
 				continue
 			}
 			err = c.DNS.Send(binary)
-			fmt.Println("send empty dns packet to server")
+//			fmt.Println("send empty dns packet to server")
 			if err != nil {
 				Error.Println(err)
 				continue
@@ -169,7 +169,7 @@ func (c *Client) DNSRecv() {
 			}
 		case TUN_CMD_ACK:
 			if c.Running {
-				fmt.Println("ACK from DNSServer")
+				//fmt.Println("ACK from DNSServer")
 			}
 		default:
 			Debug.Println("Invalid TUN Cmd")
