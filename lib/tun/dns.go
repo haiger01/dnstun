@@ -283,10 +283,12 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 			t := new(TUNIpPacket)
 			t.Cmd = cmd
 			ipId, err := strconv.Atoi(domains[n-8])
-			if err != nil {
-				return nil, fmt.Errorf("error casting ipId")
+            userId, err2 := strconv.Atoi(domains[n-5])
+			if err != nil || err2 != nil {
+				return nil, fmt.Errorf("error casting ipId or userId")
 			}
 			t.Id = ipId
+            t.UserId = userId
 			if ipId == DEF_SENDSTRING_ID {
 				encodedStr := strings.Replace(strings.Join(domains[:4], ""), "_", "", -1)
 				raw, err := base32.StdEncoding.DecodeString(encodedStr)

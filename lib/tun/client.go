@@ -116,7 +116,7 @@ func (c *Client) DNSRecv() {
 		}
 
 		if dns.RcodeToString[dnsPacket.MsgHdr.Rcode] == "SERVFAIL" {
-			fmt.Printf("need serfail handling\n")
+			fmt.Printf("ignore servfail handling\n")
 			Debug.Printf("Recv DNS Packet:\n%s\n--------------", dnsPacket.String())
 			continue
 		}

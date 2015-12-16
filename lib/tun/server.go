@@ -7,7 +7,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Conn struct {
@@ -198,7 +197,6 @@ func (s *Server) FindConnByUserId(user int) (*Conn, error) {
 }
 
 func (s *Server) DNSRecv() {
-	time.Sleep(1000 * time.Millisecond) // wait s.nextUserId ready
 	b := make([]byte, DEF_BUF_SIZE)
 	for {
 		n, rpaddr, err := s.DNS.Conn.ReadFromUDP(b)
@@ -282,7 +280,6 @@ func (s *Server) DNSRecv() {
 			}
 
 		case TUN_CMD_DATA:
-           
 			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
 			if err != nil {
 				Error.Println(err)
