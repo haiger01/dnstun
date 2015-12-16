@@ -159,11 +159,27 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
 
 	switch tun.GetCmd() {
 	case TUN_CMD_DATA, TUN_CMD_EMPTY:
-		t, ok := tun.(*TUNIpPacket)
-		if !ok {
-			return nil, fmt.Errorf("Invalid Conversion\n")
-		}
-		return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
+        if request != nil {
+            // downstream sendFreeId()
+            t, ok := tun.(*TUNIpPacket)
+            if !ok {
+                return nil, fmt.Errorf("cannot cast to TUNIpPacket")
+            }
+            return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
+		} else {
+            // upstream
+            t, ok := tun.(*TUNCmdPacket)
+            if !ok {
+                return nil, fmt.Errorf("cannot cast to TUNCmdPacket")
+            }
+            msg := new(dns.Msg)
+            labels := []string{strconv.Itoa(t.UserId), string(TUN_CMD_EMPTY), d.TopDomain}
+            domain := strings.Join(labels, ".")
+            msg.SetQuestion(domain, dns.TypeTXT)
+            msg.RecursionDesired = true
+            msgs = append(msgs, msg)
+            return msgs, nil
+        }
 	case TUN_CMD_CONNECT:
 		msg, err := d.NewDNSPacket(tun)
 		if err != nil {
