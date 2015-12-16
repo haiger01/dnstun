@@ -136,9 +136,8 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error {
 		// TODO
 		// There're pending TUN Packets, Inject it into DNS Reply Packet
 		// And Send Back
-		Error.Printf("Not Implemented, %s", tunPacket.GetUserId())
-
-		c.DNS.Reply(msg, tunPacket, paddr)
+        fmt.Println("tunPkt coming from channel")
+	    return c.DNS.Reply(msg, tunPacket, paddr)
 
 	default:
 		// TODO
@@ -149,23 +148,6 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error {
 		t := &TUNCmdPacket{TUN_CMD_ACK, c.UserId}
 		return c.DNS.Reply(msg, t, paddr)
 
-		/*
-		   domain := msg.Question[0].Name
-		   txt, err := dns.NewRR(domain + " 1 IN TXT abcdeabcde")
-		   reply.Answer = make([]dns.RR, 1)
-		   reply.Answer[0] = txt
-
-		   b, err := reply.Pack()
-		   if err != nil {
-		       Error.Println(err)
-		       return err
-		   }
-
-		   err = c.DNS.SendTo(paddr, b)
-		   if err != nil{
-		       Error.Println(err)
-		       return err
-		   }*/
 	}
 	return nil
 }
@@ -240,15 +222,8 @@ func (s *Server) DNSRecv() {
 			Debug.Printf("Connected with %s\n", conn.PAddr.String())
 
 		case TUN_CMD_EMPTY:
-			t := &TUNAckPacket{
-				Cmd:     tunPacket.GetCmd(),
-				UserId:  tunPacket.GetUserId(),
-				Request: dnsPacket,
-			}
-			err := s.DNS.Reply(dnsPacket, t, rpaddr)
-			if err != nil {
-				Error.Println(err)
-				continue
+            if conn, ok := s.Routes_By_UserId[tunPacket.GetUserId()]; ok {
+                conn.Reply(dnsPacket, rpaddr)
 			}
 		case TUN_CMD_KILL:
 
@@ -353,6 +328,13 @@ func (s *Server) TUNRecv() {
 
 func (s *Server) SendString(c *Conn, str string) {
 	fmt.Println("Server.SendString not implemented")
+    tunPkt := new(TUNIpPacket)
+    tunPkt.Cmd = TUN_CMD_EMPTY
+    tunPkt.UserId = c.UserId
+    tunPkt.Id = DEF_SENDSTRING_ID
+    tunPkt.Payload = []byte(str)
+    c.InChan <- tunPkt
+
 }
 
 func (s *Server) Info() {

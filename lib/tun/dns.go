@@ -107,7 +107,7 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	var err error
 	switch tun.GetCmd() {
 	case TUN_CMD_RESPONSE, TUN_CMD_ACK:
-		msgs, err = d.Inject(tun)
+		msgs, err = d.Inject(tun, msg)
 		if err != nil {
 			Error.Println(err)
 			return err
@@ -115,18 +115,22 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	case TUN_CMD_DATA:
         // not appropriate to use inject(tun) here
         // just ack
-        fmt.Printf("reply CMD_DATA comes here")
+        // TODO currently msgs will be dropped by intermediate DNS Server due to UDP limit 500bytes
         t := new(TUNAckPacket)
         t.Cmd = TUN_CMD_ACK
         t.UserId = tun.GetUserId()
         t.Request = msg
-		msgs, err = d.Inject(t)
-        fmt.Printf("reply CMD_DATA len(msgs):%d\n", len(msgs))
-        fmt.Printf("msg to reply\n")
-        fmt.Println(msgs[0].String())
+		msgs, err = d.Inject(t, msg)
+        //fmt.Printf("msg to reply\n")
+        //fmt.Println(msgs[0].String())
 		if err != nil {
 			return err
 		}
+    case TUN_CMD_EMPTY:
+        msgs, err = d.Inject(tun, msg)
+        if err != nil {
+            return err
+        }
 
 	default:
 		return fmt.Errorf("DNS Reply: Invalid TUN Cmd %s\n", string(tun.GetCmd()))
@@ -145,18 +149,17 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	return nil
 }
 
-func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
+func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
 
 	msgs := make([]*dns.Msg, 0)
 
 	switch tun.GetCmd() {
-	case TUN_CMD_DATA:
-
+	case TUN_CMD_DATA, TUN_CMD_EMPTY:
 		t, ok := tun.(*TUNIpPacket)
 		if !ok {
-			return nil, fmt.Errorf("Invail Conversion\n")
+			return nil, fmt.Errorf("Invalid Conversion\n")
 		}
-		return d.InjectIPPacket(t.UserId, t.Id, t.Payload)
+		return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
 	case TUN_CMD_CONNECT:
 		msg, err := d.NewDNSPacket(tun)
 		if err != nil {
@@ -166,14 +169,6 @@ func (d *DNSUtils) Inject(tun TUNPacket) ([]*dns.Msg, error) {
 		msgs = append(msgs, msg)
 		return msgs, nil
 
-	case TUN_CMD_EMPTY:
-		msg := new(dns.Msg)
-		labels := []string{strconv.Itoa(tun.(*TUNCmdPacket).UserId), string(TUN_CMD_EMPTY), d.TopDomain}
-		domain := strings.Join(labels, ".")
-		msg.SetQuestion(domain, dns.TypeTXT)
-		msg.RecursionDesired = true
-		msgs = append(msgs, msg)
-		return msgs, nil
 
 	case TUN_CMD_KILL:
 		Error.Println("Inject for CMD_KILL not implemented")
@@ -327,11 +322,11 @@ func (d *DNSUtils) injectToLabels(b []byte, base int) ([]string, error) {
 	var LABEL_SIZE int
 	var encodedStr string
 	var labelsPerDns int
-	if base == 32 {
+	if base == DEF_UPSTREAM_ENCODING_BASE {
 		LABEL_SIZE = DEF_UPSTREAM_LABEL_SIZE
 		encodedStr = base32.StdEncoding.EncodeToString(b)
 		labelsPerDns = DEF_UPSTREAM_LABELS_PER_DNS
-	} else if base == 64 {
+	} else if base == DEF_DOWNSTREAM_ENCODING_BASE {
 		LABEL_SIZE = DEF_DOWNSTREAM_LABEL_SIZE
 		encodedStr = base64.StdEncoding.EncodeToString(b)
 		labelsPerDns = DEF_DOWNSTREAM_LABELS_PER_DNS
@@ -352,7 +347,7 @@ func (d *DNSUtils) injectToLabels(b []byte, base int) ([]string, error) {
 		labelsArr = append(labelsArr, lastLabel)
 	}
 
-	// padding 1-3 empty labels to labelsArr so that len(labelsArr) % 4 == 0
+	// padding placeholder labels to labelsArr so that len(labelsArr) % labelsPerDns == 0
 	for {
 		if len(labelsArr)%labelsPerDns == 0 {
 			break
@@ -364,49 +359,67 @@ func (d *DNSUtils) injectToLabels(b []byte, base int) ([]string, error) {
 	return labelsArr, nil
 }
 
-func (d *DNSUtils) InjectIPPacket(userId int, ipId int, b []byte) ([]*dns.Msg, error) {
+func (d *DNSUtils) InjectIPPacket(userId int, ipId int, b []byte, request *dns.Msg) ([]*dns.Msg, error) {
 	msgs := make([]*dns.Msg, 0)
+    var base, labelsPerDns, labelSize int
+    var cmd byte
+    // upstream
+    if d.Kind == DNS_Client {
+        base = DEF_UPSTREAM_ENCODING_BASE
+        labelsPerDns = DEF_UPSTREAM_LABELS_PER_DNS
+        labelSize = DEF_UPSTREAM_LABEL_SIZE
+        cmd = TUN_CMD_DATA
+    } else {
+        base = DEF_DOWNSTREAM_LABELS_PER_DNS
+        labelsPerDns = DEF_DOWNSTREAM_LABELS_PER_DNS
+        labelSize = DEF_DOWNSTREAM_LABEL_SIZE
+        cmd = TUN_CMD_EMPTY
+    }
+    ipIdStr := strconv.Itoa(ipId)
+    userIdStr := strconv.Itoa(userId)
 
-	if d.Kind == DNS_Client {
-		// Client: Insert into DNS Query
+    labels, err := d.injectToLabels(b, base)
+    if err != nil {
+        return nil, err
+    }
+    for i := 0; i < len(labels)/labelsPerDns; i++ {
+        currLabels := labels[i*labelsPerDns : (i+1)*labelsPerDns]
+        encodedStr := strings.Join(currLabels, ".")
+        var mf string = "1"
+        if i == len(labels)/labelsPerDns-1 {
+            mf = "0"
+        }
+        offsetStr := strconv.Itoa(i*labelSize)
+//        var domainLabels string
+        currMsg := new(dns.Msg)
+        if d.Kind == DNS_Client {
+            domainLabels := []string{encodedStr, ipIdStr, mf, offsetStr, userIdStr, string(cmd), d.TopDomain}
+            domain := strings.Join(domainLabels, ".")
+            if len(domain) > 253 {
+                return nil, fmt.Errorf("Domain name %d > 253\n", len(domain))
+            }
+            currMsg.SetQuestion(domain, dns.TypeTXT)
+            currMsg.RecursionDesired = true
+        } else {
+            firstTxt := strings.Join([]string{string(TUN_CMD_DATA), ipIdStr, offsetStr, mf},".")
+            secondTxt := currLabels[0]
+            thirdTxt := currLabels[1]
+            currMsg.SetReply(request)
+            currMsg.Answer = make([]dns.RR, 1)
+            ans, err := dns.NewRR(currMsg.Question[0].Name + " 0 IN TXT xx")
+            if err != nil {
+                return nil, err
+            }
+            ans.(*dns.TXT).Txt = make([]string, 3)
+            ans.(*dns.TXT).Txt[0] = firstTxt
+            ans.(*dns.TXT).Txt[1] = secondTxt
+            ans.(*dns.TXT).Txt[2] = thirdTxt
+            currMsg.Answer[0] = ans
+            //Debug.Println(currMsg.String())
+        }
+        msgs = append(msgs, currMsg)
+    }
 
-		labels, err := d.injectToLabels(b, 32)
-		if err != nil {
-			return nil, err
-		}
-
-		cmdStr := TUN_CMD_DATA
-		ipIdStr := strconv.Itoa(ipId)
-        userIdStr := strconv.Itoa(userId)
-
-		for i := 0; i < len(labels)/4; i++ {
-
-			currLabels := labels[i*4 : (i+1)*4]
-			encodedStr := strings.Join(currLabels, ".")
-			var mf string = "1"
-			if i == len(labels)/4-1 {
-				mf = "0"
-			}
-
-			idxStr := strconv.Itoa(i)
-			domainLabels := []string{encodedStr, ipIdStr, mf, idxStr, userIdStr, string(cmdStr), d.TopDomain}
-
-			domain := strings.Join(domainLabels, ".")
-
-			if len(domain) > 253 {
-				return nil, fmt.Errorf("Domain name %d > 253\n", len(domain))
-			}
-
-			currMsg := new(dns.Msg)
-			currMsg.SetQuestion(domain, dns.TypeA)
-			currMsg.RecursionDesired = true
-
-			//Debug.Println(currMsg.String())
-			msgs = append(msgs, currMsg)
-		}
-	} else {
-		// Server TODO: insert into TXT records
-	}
 	return msgs, nil
 }
 
@@ -428,7 +441,7 @@ func (d *DNSUtils) InjectAndSendTo(b []byte, addr *net.UDPAddr) error {
 	t.Offset = 0
 	t.Payload = b
 
-	msgs, err := d.Inject(t)
+	msgs, err := d.Inject(t, nil)
 	if err != nil {
 		return err
 	}

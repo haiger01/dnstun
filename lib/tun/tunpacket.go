@@ -38,6 +38,14 @@ type TUNResponsePacket struct {
 	Request *dns.Msg
 }
 
+type TUNEmptyPacket struct {
+    Cmd     byte
+    UserId  int
+    Request *dns.Msg
+    Payload []byte
+}
+
+
 type TUNAckPacket struct {
 	Cmd     byte
 	UserId  int
@@ -64,18 +72,30 @@ func (t *TUNAckPacket) GetCmd() byte {
 	return TUN_CMD_ACK
 }
 
+func (t *TUNEmptyPacket) GetCmd() byte {
+    return TUN_CMD_EMPTY
+}
+
 func (t *TUNIpPacket) GetCmd() byte {
 	return TUN_CMD_DATA
 }
+
+
+
 func (t *TUNCmdPacket) GetUserId() int {
 	return t.UserId
 }
+
 func (t *TUNResponsePacket) GetUserId() int {
 	return t.UserId
 }
 
 func (t *TUNAckPacket) GetUserId() int {
 	return t.UserId
+}
+
+func (t *TUNEmptyPacket) GetUserId() int {
+    return t.UserId
 }
 
 func (t *TUNIpPacket) GetUserId() int {

@@ -52,7 +52,7 @@ func (c *Client) DNSSendFreeId() {
 		t := new(TUNCmdPacket)
 		t.Cmd = TUN_CMD_EMPTY
 		t.UserId = c.UserId
-		msgs, err := c.DNS.Inject(t)
+		msgs, err := c.DNS.Inject(t, nil)
 		if err != nil {
 			Error.Println(err)
 			continue
@@ -71,7 +71,7 @@ func (c *Client) Connect() error {
 	tunPacket.Cmd = TUN_CMD_CONNECT
 
 	// Inject the TUN Packet to a DNS Packet
-	msgs, err := c.DNS.Inject(tunPacket)
+	msgs, err := c.DNS.Inject(tunPacket, nil)
 	if err != nil {
 		Error.Println(err)
 		return err
@@ -245,7 +245,7 @@ func (c *Client) SendString(str string) {
         tunPkt.UserId = c.UserId
 		tunPkt.Id = DEF_SENDSTRING_ID
 		tunPkt.Payload = []byte(str)
-		msgs, err := c.DNS.Inject(tunPkt)
+		msgs, err := c.DNS.Inject(tunPkt, nil)
 		if err != nil {
 			fmt.Errorf("err")
 			return
