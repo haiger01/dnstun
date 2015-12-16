@@ -168,7 +168,6 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
             return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
 		} else {
             // upstream
-            fmt.Println("upstream inject")
             t, ok := tun.(*TUNCmdPacket)
             if !ok {
                 return nil, fmt.Errorf("cannot cast to TUNCmdPacket")
@@ -179,7 +178,6 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
             msg.SetQuestion(domain, dns.TypeTXT)
             msg.RecursionDesired = true
             msgs = append(msgs, msg)
-            fmt.Println("before return")
             return msgs, nil
         }
 	case TUN_CMD_CONNECT:
