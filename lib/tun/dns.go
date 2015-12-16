@@ -124,10 +124,8 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	default:
 		return fmt.Errorf("DNS Reply: Invalid TUN Cmd")
 	}
-	fmt.Printf("dns response to send: \n")
 	for _, msg := range msgs {
 
-		fmt.Println(msg.String())
 		binary, err := msg.Pack()
 		if err != nil {
 			return err
@@ -253,7 +251,10 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 				return nil, err
 			}
 			return t, nil
-
+        case TUN_CMD_ACK:
+            t := new(TUNCmdPacket)
+            t.Cmd = TUN_CMD_ACK
+            return t, nil
 		default:
 			return nil, fmt.Errorf("TUN_CMD %s from DNSServer not implemented \n", string(cmd))
 		}
