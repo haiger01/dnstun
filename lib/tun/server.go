@@ -145,7 +145,11 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error {
 		// just reply the request
 
 		// normal reply
-		t := &TUNCmdPacket{TUN_CMD_ACK, c.UserId}
+        t := &TUNAckPacket{
+                Cmd:     TUN_CMD_EMPTY,
+                UserId:  c.UserId,
+                Request: msg,
+        }
 		return c.DNS.Reply(msg, t, paddr)
 
 	}

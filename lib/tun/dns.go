@@ -107,9 +107,11 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 	var err error
 	switch tun.GetCmd() {
 	case TUN_CMD_RESPONSE, TUN_CMD_ACK:
-		msgs, err = d.Inject(tun, msg)
+		msgs, err = d.Inject(tun, nil)
 		if err != nil {
 			Error.Println(err)
+            fmt.Printf("cmd :%s\n", string(tun.GetCmd()))
+            fmt.Println(msg.String())
 			return err
 		}
 	case TUN_CMD_DATA:
@@ -196,7 +198,7 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
 			clientIpStr := strings.Replace(tunPkt.Client.String(), ".", "_", -1)
 			replyDomains := []string{string(TUN_CMD_RESPONSE), strconv.Itoa(tunPkt.UserId), serverIpStr, clientIpStr}
 			replyStr = strings.Join(replyDomains, ".")
-		} else {
+		} else if tun.GetCmd() == TUN_CMD_ACK {
 			tunPkt, ok := tun.(*TUNAckPacket)
 			if !ok {
 				return nil, fmt.Errorf("error casting to TUNAckPacket\n")
@@ -209,7 +211,9 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
 			}
 			reply.SetReply(tunPkt.Request)
 			replyStr = string(TUN_CMD_ACK)
-		}
+		} else {
+            fmt.Printf("TUN_CMD %s\n not handled\n", string(tun.GetCmd()))
+        }
 		ans.(*dns.TXT).Txt[0] = replyStr
 		reply.Answer[0] = ans
 		msgs = append(msgs, reply)
