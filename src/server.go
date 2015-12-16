@@ -22,19 +22,22 @@ func rpl(s *tun.Server) {
 		case "info":
 			s.Info()
 		case "send":
-			if len(cmd) == 1 {
+			if len(cmd) < 3 {
 				fmt.Println("Usage: send userId abcdeabcde")
 				continue
 			}
 			userId, err := strconv.Atoi(cmd[1])
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("Usage: send userId <message>")
+                continue
 			}
 			if v, ok := s.Routes_By_UserId[userId]; ok {
 				s.SendString(v, strings.Join(cmd[2:], " "))
 			} else {
 				fmt.Printf("client %d does not exist", userId)
 			}
+        case "help":
+            printHelp()
 		case "quit", "exit":
 			fmt.Println("Goodbye!")
 			return
@@ -44,6 +47,15 @@ func rpl(s *tun.Server) {
 		Error.Printf("reading standard input: %s\n", err)
 	}
 }
+
+func printHelp() {
+    fmt.Println("")
+    fmt.Println("  ping")
+    fmt.Println("  info")
+    fmt.Println("  send <userId> <message>")
+    fmt.Println("  quit/exit")
+}
+
 
 func main() {
 

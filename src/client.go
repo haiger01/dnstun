@@ -10,7 +10,7 @@ import (
 )
 
 func testPing() {
-
+    fmt.Println("client ping server not implemented. Try send command")
 }
 
 func rpl(c *tun.Client) {
@@ -27,10 +27,12 @@ func rpl(c *tun.Client) {
 			c.Info()
 		case "send":
 			if len(cmd) == 1 {
-				fmt.Println("Usage: send abcde")
+				fmt.Println("Usage: send <message>")
 				continue
 			}
 			c.SendString(strings.Join(cmd[1:], " "))
+        case "help":
+            printHelp()
 		case "kill":
 			fmt.Printf("kill not implemented\n")
 		case "quit", "exit":
@@ -42,6 +44,17 @@ func rpl(c *tun.Client) {
 		Error.Printf("reading standard input: %s\n", err)
 	}
 }
+
+func printHelp() {
+    fmt.Println("")
+    fmt.Println("  ping")
+    fmt.Println("  info")
+    fmt.Println("  send <message>")
+    fmt.Println("  kill")
+    fmt.Println("  quit/exit")
+}
+
+
 
 func main() {
 

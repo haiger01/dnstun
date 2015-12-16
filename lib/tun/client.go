@@ -263,6 +263,7 @@ func (c *Client) SendString(str string) {
 }
 
 func (c *Client) Info() {
+    fmt.Printf("\n")
 	fmt.Printf("client userId: %d, server vip:%s, client vip:%s\n", c.UserId, c.ServerVAddr.String(),
 		c.ClientVAddr.String())
 	fmt.Printf("running: %t\n", c.Running)
