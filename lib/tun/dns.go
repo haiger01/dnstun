@@ -158,7 +158,7 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
 	msgs := make([]*dns.Msg, 0)
 
 	switch tun.GetCmd() {
-	case TUN_CMD_DATA, TUN_CMD_EMPTY:
+	case  TUN_CMD_EMPTY:
         if request != nil {
             // downstream 
             t, ok := tun.(*TUNIpPacket)
@@ -181,6 +181,13 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
             msgs = append(msgs, msg)
             return msgs, nil
         }
+    case TUN_CMD_DATA:
+        t, ok := tun.(*TUNIpPacket)
+        if !ok {
+            return nil, fmt.Errorf("Invaild Conversion\n")
+        }
+        return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
+    }
 	case TUN_CMD_CONNECT:
 		msg, err := d.NewDNSPacket(tun)
 		if err != nil {

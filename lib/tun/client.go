@@ -253,6 +253,7 @@ func (c *Client) SendString(str string) {
 			fmt.Errorf("err")
 			return
 		}
+        Debug.Println("message to send: ", msgs[0].String())
 		err = c.sendDNSMessages(msgs)
 		if err != nil {
 			Error.Println(err)
