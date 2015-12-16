@@ -282,7 +282,7 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 		case TUN_CMD_DATA:
 			t := new(TUNIpPacket)
 			t.Cmd = cmd
-			ipId, err := strconv.Atoi(domains[n-8])
+			ipId, err := strconv.Atoi(domains[n-7])
 			if err != nil {
 				return nil, fmt.Errorf("error casting ipId")
 			}
