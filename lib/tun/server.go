@@ -305,13 +305,12 @@ func (s *Server) TUNRecv() {
 		}
 
 		tunPacket := new(TUNIpPacket)
-		tunPacket.Cmd = TUN_CMD_DATA
+		tunPacket.Cmd = TUN_CMD_EMPTY // downstream
 		tunPacket.Id = int(ippkt.Header.Id)
 		tunPacket.Offset = 0
 		tunPacket.More = false
 		tunPacket.Payload = b[:n]
 
-            fmt.Println("before return TUNRecv")
 		conn.InChan <- tunPacket
 
 		/*

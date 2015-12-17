@@ -498,6 +498,7 @@ func (d *DNSUtils) InjectAndSendTo(b []byte, userId int, addr *net.UDPAddr) erro
 	t.Payload = b
 
 	msgs, err := d.Inject(t, nil)
+    Debug.Printf("msg to send \n%s\n-----\n", msgs)
 	if err != nil {
 		return err
 	}
