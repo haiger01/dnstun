@@ -248,7 +248,7 @@ func (s *Server) DNSRecv() {
 			}
 
 		case TUN_CMD_DATA:
-        //Debug.Printf("Recv DNS packet:\n%s\n------", dnsPacket.String())
+       Debug.Printf("Recv DNS packet:\n%s\n------", dnsPacket.String())
 			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
 			if err != nil {
 				Error.Println(err)

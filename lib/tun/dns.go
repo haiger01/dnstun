@@ -339,15 +339,20 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 			t.UserId = -1 // has not been allocated by DNSServer
             return t, nil
 		case TUN_CMD_DATA:
+            fmt.Printf("retrieve dns packet sent by client\n")
 			t := new(TUNIpPacket)
 			t.Cmd = cmd
 			ipId, err := strconv.Atoi(domains[n-8])
             userId, err2 := strconv.Atoi(domains[n-5])
-			if err != nil || err2 != nil {
-				return nil, fmt.Errorf("error casting ipId or userId")
+            t.More = (domains[n-6] == "0")
+            offset, err3 := strconv.Atoi(domains[n-7])
+			if err != nil || err2 != nil || err3 != nil{
+				return nil, fmt.Errorf("error casting ipId or userId or offset")
 			}
+            t.Offset = offset
 			t.Id = ipId
             t.UserId = userId
+
             encodedStr := strings.Replace(strings.Join(domains[:4], ""), "_", "", -1)
             raw, err := base32.StdEncoding.DecodeString(encodedStr)
             if err != nil {
@@ -355,7 +360,9 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
             }
 			if ipId == DEF_SENDSTRING_ID {
 				fmt.Printf("recv: %s\n", string(raw))
-			}
+			} else {
+                t.Payload = raw
+            }
 			return t, nil
 		default:
 			var err error
