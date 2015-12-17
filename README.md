@@ -1,4 +1,4 @@
-tun` (IP over DNS) Documentation
+# `tun` (IP over DNS) Documentation
 
 ### Authors: Shan Lu, Xueyang Hu
 
