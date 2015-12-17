@@ -24,7 +24,7 @@ func NewTunnel(name string) (*Tunnel, error) {
 }
 
 func (t *Tunnel) Write(p []byte) error {
-
+    fmt.Printf("in Tunnel.Write\n")
 	n, err := t.conn.Write(p)
 	if err != nil {
 		return err

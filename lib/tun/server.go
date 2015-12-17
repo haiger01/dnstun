@@ -104,7 +104,7 @@ func (s *Server) NewConn(vaddr *net.IPAddr, user int) *Conn {
 
 func (c *Conn) Recv(tunPacket TUNPacket) error {
 
-	// cast packet to TUNIpPacket TODO: test if it works
+	// cast packet to TUNIpPacket:  test if it works
 	t, ok := tunPacket.(*TUNIpPacket)
 	if !ok {
 		return fmt.Errorf("Unexpected cast fail from TUNPacket to TUNIpPacket\n")

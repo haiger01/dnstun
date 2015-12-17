@@ -186,7 +186,7 @@ func (c *Client) TUNRecv() {
 			continue
 		}
 
-		err = c.DNS.InjectAndSendTo(b[:n], c.DNS.LDns)
+		err = c.DNS.InjectAndSendTo(b[:n], c.UserId, c.DNS.LDns)
 		if err != nil {
 			Error.Println(err)
 			continue
@@ -194,18 +194,8 @@ func (c *Client) TUNRecv() {
 	}
 }
 
+
 /*
-// encode binary data into base32-encoded string (client->server)
-func (c *Client) encodeBase32(raw []byte) string {
-	return base32.StdEncoding.EncodeToString(raw)
-}
-
-// decode base64-encoded string to binary data (server->client)
-func (c *Client) decodeBase64(encoded string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(encoded)
-}
-
-
 // base32-encoded string -> base32-encoded []string
 func (c *Client) buildLabels(str string) []string {
 	labelsArr := make([]string, 0)

@@ -348,16 +348,13 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 			}
 			t.Id = ipId
             t.UserId = userId
+            encodedStr := strings.Replace(strings.Join(domains[:4], ""), "_", "", -1)
+            raw, err := base32.StdEncoding.DecodeString(encodedStr)
+            if err != nil {
+                return nil, fmt.Errorf("error decode SendString's string")
+            }
 			if ipId == DEF_SENDSTRING_ID {
-				encodedStr := strings.Replace(strings.Join(domains[:4], ""), "_", "", -1)
-				raw, err := base32.StdEncoding.DecodeString(encodedStr)
-				if err != nil {
-					return nil, fmt.Errorf("error decode SendString's string")
-				}
 				fmt.Printf("recv: %s\n", string(raw))
-			} else {
-
-				fmt.Println("normal IP packet decoding has not implemented")
 			}
 			return t, nil
 		default:
@@ -482,7 +479,7 @@ func (d *DNSUtils) InjectIPPacket(userId int, ipId int, b []byte, request *dns.M
 }
 
 /* inject ip packet */
-func (d *DNSUtils) InjectAndSendTo(b []byte, addr *net.UDPAddr) error {
+func (d *DNSUtils) InjectAndSendTo(b []byte, userId int, addr *net.UDPAddr) error {
 
 	ippkt := new(ip.IPPacket)
 	err := ippkt.Unmarshal(b)
@@ -495,6 +492,7 @@ func (d *DNSUtils) InjectAndSendTo(b []byte, addr *net.UDPAddr) error {
 	t := new(TUNIpPacket)
 	t.Cmd = TUN_CMD_DATA
 	t.Id = int(id)
+    t.UserId = userId
 	t.More = false
 	t.Offset = 0
 	t.Payload = b
