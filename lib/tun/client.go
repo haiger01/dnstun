@@ -47,7 +47,7 @@ func NewClient(topDomain, ldns, laddr, tunName string) (*Client, error) {
 func (c *Client) DNSSendFreeId() {
 
 	for c.Running {
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(300 * time.Millisecond)
 
 		t := new(TUNCmdPacket)
 		t.Cmd = TUN_CMD_EMPTY

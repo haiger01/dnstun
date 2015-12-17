@@ -105,6 +105,7 @@ func (s *Server) NewConn(vaddr *net.IPAddr, user int) *Conn {
 func (c *Conn) Recv(tunPacket TUNPacket) error {
 
 	// cast packet to TUNIpPacket:  test if it works
+    //Debug.Printf("Conn.Recv gets tunPacket\n")
 	t, ok := tunPacket.(*TUNIpPacket)
 	if !ok {
 		return fmt.Errorf("Unexpected cast fail from TUNPacket to TUNIpPacket\n")
@@ -129,7 +130,6 @@ func (c *Conn) Reply(msg *dns.Msg, paddr *net.UDPAddr) error {
 
 	select {
 	case tunPacket := <-c.InChan:
-		// TODO
 		// There're pending TUN Packets, Inject it into DNS Reply Packet
 		// And Send Back
 	    err := c.DNS.Reply(msg, tunPacket, paddr)
@@ -248,7 +248,7 @@ func (s *Server) DNSRecv() {
 			}
 
 		case TUN_CMD_DATA:
-       Debug.Printf("Recv DNS packet:\n%s\n------", dnsPacket.String())
+       //Debug.Printf("Recv DNS packet:\n%s\n------", dnsPacket.String())
 			conn, err := s.FindConnByUserId(tunPacket.GetUserId())
 			if err != nil {
 				Error.Println(err)
@@ -292,9 +292,7 @@ func (s *Server) TUNRecv() {
 			Error.Println(err)
 			continue
 		}
-		Debug.Printf("TUN: IP Packet from %s to %s\n",
-			ip.IPAddrInt2Str(ippkt.Header.Src),
-			ip.IPAddrInt2Str(ippkt.Header.Dst))
+//		Debug.Printf("TUNRecv: IP Packet from %s to %s\n",ip.IPAddrInt2Str(ippkt.Header.Src),ip.IPAddrInt2Str(ippkt.Header.Dst))
 
 		rvaddrStr := ip.IPAddrInt2Str(ippkt.Header.Dst)
 

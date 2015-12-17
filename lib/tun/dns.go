@@ -339,12 +339,11 @@ func (d *DNSUtils) Retrieve(in *dns.Msg) (TUNPacket, error) {
 			t.UserId = -1 // has not been allocated by DNSServer
             return t, nil
 		case TUN_CMD_DATA:
-            fmt.Printf("retrieve dns packet sent by client\n")
 			t := new(TUNIpPacket)
 			t.Cmd = cmd
 			ipId, err := strconv.Atoi(domains[n-8])
             userId, err2 := strconv.Atoi(domains[n-5])
-            t.More = (domains[n-6] == "0")
+            t.More = (domains[n-6] == "1")
             offset, err3 := strconv.Atoi(domains[n-7])
 			if err != nil || err2 != nil || err3 != nil{
 				return nil, fmt.Errorf("error casting ipId or userId or offset")
@@ -505,7 +504,7 @@ func (d *DNSUtils) InjectAndSendTo(b []byte, userId int, addr *net.UDPAddr) erro
 	t.Payload = b
 
 	msgs, err := d.Inject(t, nil)
-    Debug.Printf("msg to send \n%s\n-----\n", msgs)
+    //Debug.Printf("msg to send \n%s\n-----\n", msgs)
 	if err != nil {
 		return err
 	}

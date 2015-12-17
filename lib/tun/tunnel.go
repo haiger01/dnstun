@@ -24,7 +24,6 @@ func NewTunnel(name string) (*Tunnel, error) {
 }
 
 func (t *Tunnel) Write(p []byte) error {
-    fmt.Printf("in Tunnel.Write\n")
 	n, err := t.conn.Write(p)
 	if err != nil {
 		return err
@@ -38,8 +37,8 @@ func (t *Tunnel) Write(p []byte) error {
 func (t *Tunnel) Save(buffer map[int][]byte, tun *TUNIpPacket) error {
 
 	if tun.Offset == 0 && tun.More == false {
-		pkt := tun.Payload
-		t.conn.Write(pkt) // send to upper layer
+		ippkt := tun.Payload
+		t.conn.Write(ippkt) // send to upper layer
 		return nil
 	}
 	pkt, ok := buffer[tun.Id]
