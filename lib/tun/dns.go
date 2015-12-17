@@ -130,7 +130,6 @@ func (d *DNSUtils) Reply(msg *dns.Msg, tun TUNPacket, paddr *net.UDPAddr) error 
 		}
     // downstreaming
     case TUN_CMD_EMPTY:
-        fmt.Println("tunPkt downstraming TUN_CMD_EMPTY")
         msgs, err = d.Inject(tun, msg)
         if err != nil {
             return err
@@ -165,7 +164,6 @@ func (d *DNSUtils) Inject(tun TUNPacket, request *dns.Msg) ([]*dns.Msg, error) {
             if !ok {
                 return nil, fmt.Errorf("cannot cast to TUNIpPacket")
             }
-            fmt.Println("DNS.Inject tunPkt downstreaming here")
             return d.InjectIPPacket(t.UserId, t.Id, t.Payload, request)
 		} else {
             // upstream
