@@ -292,7 +292,7 @@ func (s *Server) TUNRecv() {
 			Error.Println(err)
 			continue
 		}
-//		Debug.Printf("TUNRecv: IP Packet from %s to %s\n",ip.IPAddrInt2Str(ippkt.Header.Src),ip.IPAddrInt2Str(ippkt.Header.Dst))
+		Debug.Printf("TUNRecv: IP Packet from %s to %s\n",ip.IPAddrInt2Str(ippkt.Header.Src),ip.IPAddrInt2Str(ippkt.Header.Dst))
 
 		rvaddrStr := ip.IPAddrInt2Str(ippkt.Header.Dst)
 
